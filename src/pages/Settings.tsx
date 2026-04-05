@@ -1,61 +1,82 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ExecutiveDashboard } from '@/components/reports/ExecutiveDashboard'
+import { SalesReport } from '@/components/reports/SalesReport'
+import { EventsReport } from '@/components/reports/EventsReport'
+import { FinancialReport } from '@/components/reports/FinancialReport'
+import { StockReport } from '@/components/reports/StockReport'
+import { FreelancersReport } from '@/components/reports/FreelancersReport'
 
 export default function Settings() {
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">Manage your account and platform preferences.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Relatórios e Dashboards</h1>
+        <p className="text-muted-foreground mt-1">
+          Acompanhe as métricas e o desempenho do seu negócio em tempo real.
+        </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your account details and public profile.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input id="name" defaultValue="Maria Admin" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="maria@tribodafolia.com.br" />
-            </div>
-          </div>
-          <Button>Save Changes</Button>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="executive" className="w-full">
+        <TabsList className="flex flex-wrap h-auto w-full justify-start bg-transparent p-0 gap-2 mb-6">
+          <TabsTrigger
+            value="executive"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Resumo Executivo
+          </TabsTrigger>
+          <TabsTrigger
+            value="sales"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Vendas
+          </TabsTrigger>
+          <TabsTrigger
+            value="events"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Eventos
+          </TabsTrigger>
+          <TabsTrigger
+            value="financial"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Financeiro
+          </TabsTrigger>
+          <TabsTrigger
+            value="stock"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Estoque
+          </TabsTrigger>
+          <TabsTrigger
+            value="freelancers"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-6 border border-transparent data-[state=inactive]:border-border data-[state=inactive]:bg-background"
+          >
+            Freelancers
+          </TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-          <CardDescription>Configure how you receive alerts.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Email Alerts</Label>
-              <p className="text-sm text-muted-foreground">Receive daily summaries of new leads.</p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Stock Warnings</Label>
-              <p className="text-sm text-muted-foreground">
-                Get notified when items drop below minimum.
-              </p>
-            </div>
-            <Switch defaultChecked />
-          </div>
-        </CardContent>
-      </Card>
+        <div className="mt-4">
+          <TabsContent value="executive" className="mt-0 border-none outline-none">
+            <ExecutiveDashboard />
+          </TabsContent>
+          <TabsContent value="sales" className="mt-0 border-none outline-none">
+            <SalesReport />
+          </TabsContent>
+          <TabsContent value="events" className="mt-0 border-none outline-none">
+            <EventsReport />
+          </TabsContent>
+          <TabsContent value="financial" className="mt-0 border-none outline-none">
+            <FinancialReport />
+          </TabsContent>
+          <TabsContent value="stock" className="mt-0 border-none outline-none">
+            <StockReport />
+          </TabsContent>
+          <TabsContent value="freelancers" className="mt-0 border-none outline-none">
+            <FreelancersReport />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   )
 }

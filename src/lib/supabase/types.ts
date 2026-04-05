@@ -140,6 +140,51 @@ export type Database = {
           },
         ]
       }
+      event_assignments: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          freelancer_id: string | null
+          id: string
+          role: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          freelancer_id?: string | null
+          id?: string
+          role: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          freelancer_id?: string | null
+          id?: string
+          role?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'event_assignments_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'event_assignments_freelancer_id_fkey'
+            columns: ['freelancer_id']
+            isOneToOne: false
+            referencedRelation: 'freelancers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       events: {
         Row: {
           client_name: string
@@ -182,6 +227,113 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          description: string
+          due_date: string
+          id: string
+          status: string | null
+          supplier: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string | null
+          description: string
+          due_date: string
+          id?: string
+          status?: string | null
+          supplier?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          description?: string
+          due_date?: string
+          id?: string
+          status?: string | null
+          supplier?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      freelancer_roles: {
+        Row: {
+          created_at: string | null
+          freelancer_id: string | null
+          hourly_rate: number
+          id: string
+          role: string
+        }
+        Insert: {
+          created_at?: string | null
+          freelancer_id?: string | null
+          hourly_rate?: number
+          id?: string
+          role: string
+        }
+        Update: {
+          created_at?: string | null
+          freelancer_id?: string | null
+          hourly_rate?: number
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'freelancer_roles_freelancer_id_fkey'
+            columns: ['freelancer_id']
+            isOneToOne: false
+            referencedRelation: 'freelancers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      freelancers: {
+        Row: {
+          cpf: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          legal_guardian_name: string | null
+          legal_guardian_phone: string | null
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          legal_guardian_name?: string | null
+          legal_guardian_phone?: string | null
+          name: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          legal_guardian_name?: string | null
+          legal_guardian_phone?: string | null
+          name?: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           created_at: string | null
@@ -220,6 +372,8 @@ export type Database = {
           due_date: string
           id: string
           installment_number: number
+          paid_at: string | null
+          payment_method: string | null
           status: string | null
           updated_at: string
         }
@@ -230,6 +384,8 @@ export type Database = {
           due_date: string
           id?: string
           installment_number: number
+          paid_at?: string | null
+          payment_method?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -240,6 +396,8 @@ export type Database = {
           due_date?: string
           id?: string
           installment_number?: number
+          paid_at?: string | null
+          payment_method?: string | null
           status?: string | null
           updated_at?: string
         }
@@ -546,6 +704,14 @@ export const Constants = {
 //   sender: text (not null)
 //   message: text (not null)
 //   created_at: timestamp with time zone (nullable, default: now())
+// Table: event_assignments
+//   id: uuid (not null, default: gen_random_uuid())
+//   event_id: uuid (nullable)
+//   freelancer_id: uuid (nullable)
+//   role: text (not null)
+//   status: text (nullable, default: 'Escalado'::text)
+//   created_at: timestamp with time zone (nullable, default: now())
+//   updated_at: timestamp with time zone (nullable, default: now())
 // Table: events
 //   id: uuid (not null, default: gen_random_uuid())
 //   title: text (not null)
@@ -558,6 +724,33 @@ export const Constants = {
 //   status: text (nullable, default: 'Pending'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: expenses
+//   id: uuid (not null, default: gen_random_uuid())
+//   description: text (not null)
+//   amount: numeric (not null)
+//   due_date: date (not null)
+//   status: text (nullable, default: 'Pendente'::text)
+//   category: text (not null)
+//   supplier: text (nullable)
+//   created_at: timestamp with time zone (nullable, default: now())
+//   updated_at: timestamp with time zone (nullable, default: now())
+// Table: freelancer_roles
+//   id: uuid (not null, default: gen_random_uuid())
+//   freelancer_id: uuid (nullable)
+//   role: text (not null)
+//   hourly_rate: numeric (not null, default: 0)
+//   created_at: timestamp with time zone (nullable, default: now())
+// Table: freelancers
+//   id: uuid (not null, default: gen_random_uuid())
+//   name: text (not null)
+//   phone: text (nullable)
+//   email: text (nullable)
+//   cpf: text (nullable)
+//   legal_guardian_name: text (nullable)
+//   legal_guardian_phone: text (nullable)
+//   status: text (nullable, default: 'Ativo'::text)
+//   created_at: timestamp with time zone (nullable, default: now())
+//   updated_at: timestamp with time zone (nullable, default: now())
 // Table: leads
 //   id: uuid (not null, default: gen_random_uuid())
 //   name: text (not null)
@@ -575,6 +768,8 @@ export const Constants = {
 //   installment_number: integer (not null)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   payment_method: text (nullable)
+//   paid_at: timestamp with time zone (nullable)
 // Table: products
 //   id: uuid (not null, default: gen_random_uuid())
 //   name: text (not null)
@@ -611,8 +806,19 @@ export const Constants = {
 // Table: conversations
 //   FOREIGN KEY conversations_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
 //   PRIMARY KEY conversations_pkey: PRIMARY KEY (id)
+// Table: event_assignments
+//   FOREIGN KEY event_assignments_event_id_fkey: FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+//   FOREIGN KEY event_assignments_freelancer_id_fkey: FOREIGN KEY (freelancer_id) REFERENCES freelancers(id) ON DELETE CASCADE
+//   PRIMARY KEY event_assignments_pkey: PRIMARY KEY (id)
 // Table: events
 //   PRIMARY KEY events_pkey: PRIMARY KEY (id)
+// Table: expenses
+//   PRIMARY KEY expenses_pkey: PRIMARY KEY (id)
+// Table: freelancer_roles
+//   FOREIGN KEY freelancer_roles_freelancer_id_fkey: FOREIGN KEY (freelancer_id) REFERENCES freelancers(id) ON DELETE CASCADE
+//   PRIMARY KEY freelancer_roles_pkey: PRIMARY KEY (id)
+// Table: freelancers
+//   PRIMARY KEY freelancers_pkey: PRIMARY KEY (id)
 // Table: leads
 //   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
 // Table: payments
@@ -646,6 +852,10 @@ export const Constants = {
 //   Policy "authenticated_all_conversations" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: event_assignments
+//   Policy "authenticated_all_event_assignments" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: events
 //   Policy "authenticated_delete_events" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -654,6 +864,18 @@ export const Constants = {
 //   Policy "authenticated_select_events" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "authenticated_update_events" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: expenses
+//   Policy "authenticated_all_expenses" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: freelancer_roles
+//   Policy "authenticated_all_freelancer_roles" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: freelancers
+//   Policy "authenticated_all_freelancers" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
 // Table: leads
