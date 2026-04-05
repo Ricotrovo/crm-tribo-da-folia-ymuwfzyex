@@ -951,5 +951,15 @@ export const Constants = {
 //   on_stock_movement: CREATE TRIGGER on_stock_movement AFTER INSERT ON public.stock_movements FOR EACH ROW EXECUTE FUNCTION handle_stock_movement()
 
 // --- INDEXES ---
+// Table: contracts
+//   CREATE INDEX idx_contracts_created_status_value ON public.contracts USING btree (created_at, status, total_value)
+// Table: events
+//   CREATE INDEX idx_events_date_status ON public.events USING btree (date, status)
+// Table: expenses
+//   CREATE INDEX idx_expenses_due_status_amount ON public.expenses USING btree (due_date, status, amount)
+// Table: leads
+//   CREATE INDEX idx_leads_status_created ON public.leads USING btree (status, created_at)
+// Table: payments
+//   CREATE INDEX idx_payments_due_status_amount ON public.payments USING btree (due_date, status, amount)
 // Table: stock
 //   CREATE UNIQUE INDEX stock_product_id_location_key ON public.stock USING btree (product_id, location)

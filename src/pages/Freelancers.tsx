@@ -14,14 +14,33 @@ import {
 import { Phone, Mail, UserPlus, Settings2, CalendarCheck, Star, Award } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { format } from 'date-fns'
+import { FreelancerSheet } from '@/components/freelancers/FreelancerSheet'
+import { AssignmentSheet } from '@/components/freelancers/AssignmentSheet'
 
 export default function Freelancers() {
   const [freelancers, setFreelancers] = useState<any[]>([])
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isFreelancerOpen, setIsFreelancerOpen] = useState(false)
+  const [isAssignmentOpen, setIsAssignmentOpen] = useState(false)
+
+  const fetchData = async () => {
+    setLoading(true)
+
+    const { data: freelancersData } = await supabase
+      .from('freelancers' as any)
+      .select('*, freelancer_roles(*)')
+
+    const { data: assignmentsData } = await supabase
+      .from('event_assignments' as any)
+      .select('*, events(title, date), freelancers(name)')
+
+    setFreelancers(freelancersData || [])
+    setAssignments(assignmentsData || [])
+    setLoading(false)
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
       setLoading(true)
 
       const { data: freelancersData } = await supabase
@@ -49,7 +68,7 @@ export default function Freelancers() {
             Gerencie sua equipe de apoio, escalas e pagamentos.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setIsFreelancerOpen(true)}>
           <UserPlus className="mr-2 h-4 w-4" /> Novo Freelancer
         </Button>
       </div>
@@ -148,7 +167,7 @@ export default function Freelancers() {
                   Acompanhe os freelancers escalados para os próximos eventos.
                 </CardDescription>
               </div>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" onClick={() => setIsAssignmentOpen(true)}>
                 <CalendarCheck className="mr-2 h-4 w-4" /> Nova Escala
               </Button>
             </CardHeader>
@@ -257,6 +276,23 @@ export default function Freelancers() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <FreelancerSheet 
+        open={isFreelancerOpen} 
+        onOpenChange={setIsFreelancerOpen} 
+        onSuccess={() => {
+          setIsFreelancerOpen(false)
+          fetchData()
+        }} 
+      />
+      <AssignmentSheet 
+        open={isAssignmentOpen} 
+        onOpenChange={setIsAssignmentOpen} 
+        onSuccess={() => {
+          setIsAssignmentOpen(false)
+          fetchData()
+        }} 
+      />
     </div>
   )
 }

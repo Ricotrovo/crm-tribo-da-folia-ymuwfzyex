@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { eventService, EventRecord } from '@/services/events'
 import { supabase } from '@/lib/supabase/client'
+import { EventSheet } from '@/components/agenda/EventSheet'
 
 const TIME_SLOTS = ['12:00', '12:30', '13:00', '19:00', '19:30', '20:00']
 const SALONS = ['Premium', 'Kids&Teens'] as const
@@ -86,6 +87,7 @@ export default function Agenda() {
   const [events, setEvents] = useState<EventRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [dragOverCell, setDragOverCell] = useState<string | null>(null)
+  const [isEventSheetOpen, setIsEventSheetOpen] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -223,7 +225,7 @@ export default function Agenda() {
           >
             <CalendarSync className="mr-2 h-4 w-4" /> Sync Google
           </Button>
-          <Button className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto" onClick={() => setIsEventSheetOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Novo Evento
           </Button>
         </div>
@@ -344,6 +346,15 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+
+      <EventSheet
+        open={isEventSheetOpen}
+        onOpenChange={setIsEventSheetOpen}
+        onSuccess={() => {
+          setIsEventSheetOpen(false)
+          if (date) loadEvents(date)
+        }}
+      />
     </div>
   )
 }

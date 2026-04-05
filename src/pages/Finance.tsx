@@ -14,31 +14,33 @@ import {
 import { Download, TrendingUp, TrendingDown, DollarSign, PlusCircle, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { format, isPast, isToday } from 'date-fns'
+import { ExpenseSheet } from '@/components/finance/ExpenseSheet'
 
 export default function Finance() {
   const [receivables, setReceivables] = useState<any[]>([])
   const [payables, setPayables] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [isExpenseOpen, setIsExpenseOpen] = useState(false)
+
+  const fetchData = async () => {
+    setLoading(true)
+
+    const { data: payData } = await supabase
+      .from('payments')
+      .select('*')
+      .order('due_date', { ascending: true })
+
+    const { data: expData } = await supabase
+      .from('expenses' as any)
+      .select('*')
+      .order('due_date', { ascending: true })
+
+    setReceivables(payData || [])
+    setPayables(expData || [])
+    setLoading(false)
+  }
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-
-      const { data: payData } = await supabase
-        .from('payments')
-        .select('*')
-        .order('due_date', { ascending: true })
-
-      const { data: expData } = await supabase
-        .from('expenses' as any)
-        .select('*')
-        .order('due_date', { ascending: true })
-
-      setReceivables(payData || [])
-      setPayables(expData || [])
-      setLoading(false)
-    }
-
     fetchData()
   }, [])
 
@@ -65,7 +67,7 @@ export default function Finance() {
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" /> Relatório
           </Button>
-          <Button>
+          <Button onClick={() => setIsExpenseOpen(true)}>
             <PlusCircle className="mr-2 h-4 w-4" /> Nova Despesa
           </Button>
         </div>
@@ -277,6 +279,15 @@ export default function Finance() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ExpenseSheet
+        open={isExpenseOpen}
+        onOpenChange={setIsExpenseOpen}
+        onSuccess={() => {
+          setIsExpenseOpen(false)
+          fetchData()
+        }}
+      />
     </div>
   )
 }
