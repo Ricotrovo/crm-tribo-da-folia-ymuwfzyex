@@ -9,7 +9,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          client_name: string
+          created_at: string
+          date: string
+          guests: number | null
+          id: string
+          menu: string | null
+          salon: string
+          status: string | null
+          time: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          date: string
+          guests?: number | null
+          id?: string
+          menu?: string | null
+          salon: string
+          status?: string | null
+          time: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          date?: string
+          guests?: number | null
+          id?: string
+          menu?: string | null
+          salon?: string
+          status?: string | null
+          time?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -153,3 +194,35 @@ export const Constants = {
 // IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
 // Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
 // Always use the correct PostgreSQL type when writing SQL migrations.
+
+// --- COLUMN TYPES (actual PostgreSQL types) ---
+// Use this to know the real database type when writing migrations.
+// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: events
+//   id: uuid (not null, default: gen_random_uuid())
+//   title: text (not null)
+//   date: date (not null)
+//   time: text (not null)
+//   salon: text (not null)
+//   client_name: text (not null)
+//   guests: integer (nullable, default: 0)
+//   menu: text (nullable)
+//   status: text (nullable, default: 'Pending'::text)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+
+// --- CONSTRAINTS ---
+// Table: events
+//   PRIMARY KEY events_pkey: PRIMARY KEY (id)
+
+// --- ROW LEVEL SECURITY POLICIES ---
+// Table: events
+//   Policy "authenticated_delete_events" (DELETE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_insert_events" (INSERT, PERMISSIVE) roles={authenticated}
+//     WITH CHECK: true
+//   Policy "authenticated_select_events" (SELECT, PERMISSIVE) roles={authenticated}
+//     USING: true
+//   Policy "authenticated_update_events" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
