@@ -253,6 +253,122 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          min_quantity: number
+          name: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          min_quantity?: number
+          name?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stock: {
+        Row: {
+          created_at: string
+          id: string
+          location: string
+          product_id: string
+          quantity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          location: string
+          product_id: string
+          quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          location?: string
+          product_id?: string
+          quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'stock_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          location_from: string | null
+          location_to: string | null
+          lot: string | null
+          product_id: string
+          quantity: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          location_from?: string | null
+          location_to?: string | null
+          lot?: string | null
+          product_id: string
+          quantity: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          location_from?: string | null
+          location_to?: string | null
+          lot?: string | null
+          product_id?: string
+          quantity?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'stock_movements_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'stock_movements_product_id_fkey'
+            columns: ['product_id']
+            isOneToOne: false
+            referencedRelation: 'products'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -459,6 +575,31 @@ export const Constants = {
 //   installment_number: integer (not null)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: products
+//   id: uuid (not null, default: gen_random_uuid())
+//   name: text (not null)
+//   unit: text (not null)
+//   min_quantity: numeric (not null, default: 0)
+//   category: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: stock
+//   id: uuid (not null, default: gen_random_uuid())
+//   product_id: uuid (not null)
+//   location: text (not null)
+//   quantity: numeric (not null, default: 0)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: stock_movements
+//   id: uuid (not null, default: gen_random_uuid())
+//   product_id: uuid (not null)
+//   type: text (not null)
+//   quantity: numeric (not null)
+//   location_from: text (nullable)
+//   location_to: text (nullable)
+//   event_id: uuid (nullable)
+//   lot: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
 // Table: clients
@@ -477,6 +618,20 @@ export const Constants = {
 // Table: payments
 //   FOREIGN KEY payments_contract_id_fkey: FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
 //   PRIMARY KEY payments_pkey: PRIMARY KEY (id)
+// Table: products
+//   PRIMARY KEY products_pkey: PRIMARY KEY (id)
+// Table: stock
+//   CHECK stock_location_check: CHECK ((location = ANY (ARRAY['camara'::text, 'freezer'::text])))
+//   PRIMARY KEY stock_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY stock_product_id_fkey: FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+//   UNIQUE stock_product_id_location_key: UNIQUE (product_id, location)
+// Table: stock_movements
+//   FOREIGN KEY stock_movements_event_id_fkey: FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
+//   CHECK stock_movements_location_from_check: CHECK ((location_from = ANY (ARRAY['camara'::text, 'freezer'::text])))
+//   CHECK stock_movements_location_to_check: CHECK ((location_to = ANY (ARRAY['camara'::text, 'freezer'::text])))
+//   PRIMARY KEY stock_movements_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY stock_movements_product_id_fkey: FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+//   CHECK stock_movements_type_check: CHECK ((type = ANY (ARRAY['entry'::text, 'exit'::text, 'transfer'::text])))
 
 // --- ROW LEVEL SECURITY POLICIES ---
 // Table: clients
@@ -509,8 +664,52 @@ export const Constants = {
 //   Policy "authenticated_all_payments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: products
+//   Policy "authenticated_all_products" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: stock
+//   Policy "authenticated_all_stock" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: stock_movements
+//   Policy "authenticated_all_stock_movements" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 
 // --- DATABASE FUNCTIONS ---
+// FUNCTION handle_stock_movement()
+//   CREATE OR REPLACE FUNCTION public.handle_stock_movement()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     IF NEW.type = 'entry' THEN
+//       INSERT INTO public.stock (product_id, location, quantity)
+//       VALUES (NEW.product_id, NEW.location_to, NEW.quantity)
+//       ON CONFLICT (product_id, location) DO UPDATE
+//       SET quantity = public.stock.quantity + NEW.quantity, updated_at = NOW();
+//     ELSIF NEW.type = 'exit' THEN
+//       INSERT INTO public.stock (product_id, location, quantity)
+//       VALUES (NEW.product_id, NEW.location_from, -NEW.quantity)
+//       ON CONFLICT (product_id, location) DO UPDATE
+//       SET quantity = public.stock.quantity - NEW.quantity, updated_at = NOW();
+//     ELSIF NEW.type = 'transfer' THEN
+//       INSERT INTO public.stock (product_id, location, quantity)
+//       VALUES (NEW.product_id, NEW.location_from, -NEW.quantity)
+//       ON CONFLICT (product_id, location) DO UPDATE
+//       SET quantity = public.stock.quantity - NEW.quantity, updated_at = NOW();
+//
+//       INSERT INTO public.stock (product_id, location, quantity)
+//       VALUES (NEW.product_id, NEW.location_to, NEW.quantity)
+//       ON CONFLICT (product_id, location) DO UPDATE
+//       SET quantity = public.stock.quantity + NEW.quantity, updated_at = NOW();
+//     END IF;
+//     RETURN NEW;
+//   END;
+//   $function$
+//
 // FUNCTION update_modified_column()
 //   CREATE OR REPLACE FUNCTION public.update_modified_column()
 //    RETURNS trigger
@@ -526,3 +725,9 @@ export const Constants = {
 // --- TRIGGERS ---
 // Table: leads
 //   update_leads_modtime: CREATE TRIGGER update_leads_modtime BEFORE UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION update_modified_column()
+// Table: stock_movements
+//   on_stock_movement: CREATE TRIGGER on_stock_movement AFTER INSERT ON public.stock_movements FOR EACH ROW EXECUTE FUNCTION handle_stock_movement()
+
+// --- INDEXES ---
+// Table: stock
+//   CREATE UNIQUE INDEX stock_product_id_location_key ON public.stock USING btree (product_id, location)
