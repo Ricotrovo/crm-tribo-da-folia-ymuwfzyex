@@ -5,20 +5,19 @@ import { useSidebar } from '@/components/ui/sidebar'
 import {
   Breadcrumb,
   BreadcrumbItem,
+  BreadcrumbLink,
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { useLocation } from 'react-router-dom'
+import { useLocation, Link } from 'react-router-dom'
+import React from 'react'
 
 export function TopHeader() {
   const { toggleSidebar } = useSidebar()
   const location = useLocation()
 
-  const pathName =
-    location.pathname === '/'
-      ? 'Dashboard'
-      : location.pathname.substring(1).charAt(0).toUpperCase() + location.pathname.slice(2)
+  const pathSegments = location.pathname.split('/').filter(Boolean)
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6">
@@ -29,8 +28,37 @@ export function TopHeader() {
         <Breadcrumb className="hidden sm:block">
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbPage className="font-semibold text-foreground">{pathName}</BreadcrumbPage>
+              {pathSegments.length === 0 ? (
+                <BreadcrumbPage className="font-semibold text-foreground">Dashboard</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink asChild>
+                  <Link to="/">Dashboard</Link>
+                </BreadcrumbLink>
+              )}
             </BreadcrumbItem>
+
+            {pathSegments.map((segment, index) => {
+              const path = `/${pathSegments.slice(0, index + 1).join('/')}`
+              const isLast = index === pathSegments.length - 1
+              const title = segment.charAt(0).toUpperCase() + segment.slice(1)
+
+              return (
+                <React.Fragment key={path}>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    {isLast ? (
+                      <BreadcrumbPage className="font-semibold text-foreground">
+                        {title}
+                      </BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link to={path}>{title}</Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </React.Fragment>
+              )
+            })}
           </BreadcrumbList>
         </Breadcrumb>
       </div>
