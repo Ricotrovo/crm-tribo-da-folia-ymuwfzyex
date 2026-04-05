@@ -108,6 +108,38 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          lead_id: string | null
+          message: string
+          sender: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lead_id?: string | null
+          message: string
+          sender: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lead_id?: string | null
+          message?: string
+          sender?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'conversations_lead_id_fkey'
+            columns: ['lead_id']
+            isOneToOne: false
+            referencedRelation: 'leads'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       events: {
         Row: {
           client_name: string
@@ -147,6 +179,36 @@ export type Database = {
           time?: string
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          origin: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          origin?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          origin?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -362,6 +424,12 @@ export const Constants = {
 //   notes: text (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: conversations
+//   id: uuid (not null, default: gen_random_uuid())
+//   lead_id: uuid (nullable)
+//   sender: text (not null)
+//   message: text (not null)
+//   created_at: timestamp with time zone (nullable, default: now())
 // Table: events
 //   id: uuid (not null, default: gen_random_uuid())
 //   title: text (not null)
@@ -374,6 +442,14 @@ export const Constants = {
 //   status: text (nullable, default: 'Pending'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: leads
+//   id: uuid (not null, default: gen_random_uuid())
+//   name: text (not null)
+//   phone: text (nullable)
+//   origin: text (nullable, default: 'WhatsApp'::text)
+//   status: text (nullable, default: 'Novo'::text)
+//   created_at: timestamp with time zone (nullable, default: now())
+//   updated_at: timestamp with time zone (nullable, default: now())
 // Table: payments
 //   id: uuid (not null, default: gen_random_uuid())
 //   contract_id: uuid (nullable)
@@ -391,8 +467,13 @@ export const Constants = {
 //   FOREIGN KEY contracts_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT
 //   FOREIGN KEY contracts_event_id_fkey: FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE RESTRICT
 //   PRIMARY KEY contracts_pkey: PRIMARY KEY (id)
+// Table: conversations
+//   FOREIGN KEY conversations_lead_id_fkey: FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+//   PRIMARY KEY conversations_pkey: PRIMARY KEY (id)
 // Table: events
 //   PRIMARY KEY events_pkey: PRIMARY KEY (id)
+// Table: leads
+//   PRIMARY KEY leads_pkey: PRIMARY KEY (id)
 // Table: payments
 //   FOREIGN KEY payments_contract_id_fkey: FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
 //   PRIMARY KEY payments_pkey: PRIMARY KEY (id)
@@ -406,6 +487,10 @@ export const Constants = {
 //   Policy "authenticated_all_contracts" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: conversations
+//   Policy "authenticated_all_conversations" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: events
 //   Policy "authenticated_delete_events" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -416,7 +501,28 @@ export const Constants = {
 //   Policy "authenticated_update_events" (UPDATE, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+// Table: leads
+//   Policy "authenticated_all_leads" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: payments
 //   Policy "authenticated_all_payments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
+
+// --- DATABASE FUNCTIONS ---
+// FUNCTION update_modified_column()
+//   CREATE OR REPLACE FUNCTION public.update_modified_column()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//   AS $function$
+//   BEGIN
+//       NEW.updated_at = NOW();
+//       RETURN NEW;
+//   END;
+//   $function$
+//
+
+// --- TRIGGERS ---
+// Table: leads
+//   update_leads_modtime: CREATE TRIGGER update_leads_modtime BEFORE UPDATE ON public.leads FOR EACH ROW EXECUTE FUNCTION update_modified_column()
