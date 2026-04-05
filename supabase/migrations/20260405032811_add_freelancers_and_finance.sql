@@ -90,10 +90,10 @@ BEGIN
   END IF;
 
   -- Insert mock payment (receivable)
-  IF NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'p1000000-0000-0000-0000-000000000001'::uuid) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.payments WHERE id = 'a1000000-0000-0000-0000-000000000001'::uuid) THEN
     INSERT INTO public.payments (id, amount, due_date, installment_number, status) VALUES
-      ('p1000000-0000-0000-0000-000000000001'::uuid, 1500.00, CURRENT_DATE, 1, 'Pendente'),
-      ('p2000000-0000-0000-0000-000000000002'::uuid, 1500.00, CURRENT_DATE + INTERVAL '30 days', 2, 'Pendente');
+      ('a1000000-0000-0000-0000-000000000001'::uuid, 1500.00, CURRENT_DATE, 1, 'Pendente'),
+      ('a2000000-0000-0000-0000-000000000002'::uuid, 1500.00, CURRENT_DATE + INTERVAL '30 days', 2, 'Pendente');
   END IF;
 
 END $$;
