@@ -41,21 +41,6 @@ export default function Freelancers() {
   }
 
   useEffect(() => {
-      setLoading(true)
-
-      const { data: freelancersData } = await supabase
-        .from('freelancers' as any)
-        .select('*, freelancer_roles(*)')
-
-      const { data: assignmentsData } = await supabase
-        .from('event_assignments' as any)
-        .select('*, events(title, date), freelancers(name)')
-
-      setFreelancers(freelancersData || [])
-      setAssignments(assignmentsData || [])
-      setLoading(false)
-    }
-
     fetchData()
   }, [])
 
@@ -277,21 +262,21 @@ export default function Freelancers() {
         </TabsContent>
       </Tabs>
 
-      <FreelancerSheet 
-        open={isFreelancerOpen} 
-        onOpenChange={setIsFreelancerOpen} 
+      <FreelancerSheet
+        open={isFreelancerOpen}
+        onOpenChange={setIsFreelancerOpen}
         onSuccess={() => {
           setIsFreelancerOpen(false)
           fetchData()
-        }} 
+        }}
       />
-      <AssignmentSheet 
-        open={isAssignmentOpen} 
-        onOpenChange={setIsAssignmentOpen} 
+      <AssignmentSheet
+        open={isAssignmentOpen}
+        onOpenChange={setIsAssignmentOpen}
         onSuccess={() => {
           setIsAssignmentOpen(false)
           fetchData()
-        }} 
+        }}
       />
     </div>
   )
