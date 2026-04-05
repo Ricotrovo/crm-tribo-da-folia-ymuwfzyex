@@ -9,6 +9,105 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          created_at: string
+          document: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      contracts: {
+        Row: {
+          base_value: number
+          client_id: string | null
+          contract_number: number | null
+          created_at: string
+          discount: number
+          event_id: string | null
+          extra_guests_value: number
+          id: string
+          installments: number | null
+          notes: string | null
+          optionals_value: number
+          payment_method: string | null
+          status: string | null
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          base_value?: number
+          client_id?: string | null
+          contract_number?: number | null
+          created_at?: string
+          discount?: number
+          event_id?: string | null
+          extra_guests_value?: number
+          id?: string
+          installments?: number | null
+          notes?: string | null
+          optionals_value?: number
+          payment_method?: string | null
+          status?: string | null
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          base_value?: number
+          client_id?: string | null
+          contract_number?: number | null
+          created_at?: string
+          discount?: number
+          event_id?: string | null
+          extra_guests_value?: number
+          id?: string
+          installments?: number | null
+          notes?: string | null
+          optionals_value?: number
+          payment_method?: string | null
+          status?: string | null
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'contracts_client_id_fkey'
+            columns: ['client_id']
+            isOneToOne: false
+            referencedRelation: 'clients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'contracts_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       events: {
         Row: {
           client_name: string
@@ -50,6 +149,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          contract_id: string | null
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          contract_id?: string | null
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contract_id?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'payments_contract_id_fkey'
+            columns: ['contract_id']
+            isOneToOne: false
+            referencedRelation: 'contracts'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {
@@ -198,6 +338,30 @@ export const Constants = {
 // --- COLUMN TYPES (actual PostgreSQL types) ---
 // Use this to know the real database type when writing migrations.
 // "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: clients
+//   id: uuid (not null, default: gen_random_uuid())
+//   name: text (not null)
+//   phone: text (nullable)
+//   email: text (nullable)
+//   document: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: contracts
+//   id: uuid (not null, default: gen_random_uuid())
+//   contract_number: integer (nullable, default: nextval('contract_number_seq'::regclass))
+//   client_id: uuid (nullable)
+//   event_id: uuid (nullable)
+//   status: text (nullable, default: 'Draft'::text)
+//   base_value: numeric (not null, default: 0)
+//   extra_guests_value: numeric (not null, default: 0)
+//   optionals_value: numeric (not null, default: 0)
+//   discount: numeric (not null, default: 0)
+//   total_value: numeric (not null, default: 0)
+//   installments: integer (nullable, default: 1)
+//   payment_method: text (nullable)
+//   notes: text (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 // Table: events
 //   id: uuid (not null, default: gen_random_uuid())
 //   title: text (not null)
@@ -210,12 +374,38 @@ export const Constants = {
 //   status: text (nullable, default: 'Pending'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: payments
+//   id: uuid (not null, default: gen_random_uuid())
+//   contract_id: uuid (nullable)
+//   amount: numeric (not null)
+//   due_date: date (not null)
+//   status: text (nullable, default: 'Pending'::text)
+//   installment_number: integer (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
 
 // --- CONSTRAINTS ---
+// Table: clients
+//   PRIMARY KEY clients_pkey: PRIMARY KEY (id)
+// Table: contracts
+//   FOREIGN KEY contracts_client_id_fkey: FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE RESTRICT
+//   FOREIGN KEY contracts_event_id_fkey: FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE RESTRICT
+//   PRIMARY KEY contracts_pkey: PRIMARY KEY (id)
 // Table: events
 //   PRIMARY KEY events_pkey: PRIMARY KEY (id)
+// Table: payments
+//   FOREIGN KEY payments_contract_id_fkey: FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE
+//   PRIMARY KEY payments_pkey: PRIMARY KEY (id)
 
 // --- ROW LEVEL SECURITY POLICIES ---
+// Table: clients
+//   Policy "authenticated_all_clients" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: contracts
+//   Policy "authenticated_all_contracts" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
 // Table: events
 //   Policy "authenticated_delete_events" (DELETE, PERMISSIVE) roles={authenticated}
 //     USING: true
@@ -224,5 +414,9 @@ export const Constants = {
 //   Policy "authenticated_select_events" (SELECT, PERMISSIVE) roles={authenticated}
 //     USING: true
 //   Policy "authenticated_update_events" (UPDATE, PERMISSIVE) roles={authenticated}
+//     USING: true
+//     WITH CHECK: true
+// Table: payments
+//   Policy "authenticated_all_payments" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: true
 //     WITH CHECK: true
