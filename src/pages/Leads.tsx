@@ -73,7 +73,11 @@ export default function Leads() {
       if (data) setLeads(data)
     } catch (err: any) {
       console.error(err)
-      toast({ title: 'Erro', description: err.message || 'Falha ao carregar leads.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: err.message || 'Falha ao carregar leads.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -86,7 +90,11 @@ export default function Leads() {
       if (data) setConversations(data)
     } catch (err: any) {
       console.error(err)
-      toast({ title: 'Erro', description: err.message || 'Falha ao carregar conversas.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: err.message || 'Falha ao carregar conversas.',
+        variant: 'destructive',
+      })
     } finally {
       setIsChatLoading(false)
     }
@@ -150,7 +158,11 @@ export default function Leads() {
       }
     } catch (err: any) {
       console.error('Erro ao enviar mensagem:', err)
-      toast({ title: 'Erro', description: err.message || 'Falha ao enviar mensagem.', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: err.message || 'Falha ao enviar mensagem.',
+        variant: 'destructive',
+      })
     } finally {
       setIsChatLoading(false)
     }
@@ -171,14 +183,18 @@ export default function Leads() {
     try {
       const created = await createLead(newLead)
       if (!created || !created.id) throw new Error('Lead não retornou um ID válido.')
-      
+
       setLeads((prev) => [created, ...prev])
       toast({ title: 'Novo lead capturado!', description: `Lead via ${origin}` })
 
       await sendMessage(created.id, 'Olá, gostaria de um orçamento para festa infantil.', 'client')
     } catch (e: any) {
       console.error('Erro ao simular lead:', e)
-      toast({ title: 'Erro', description: e.message || 'Falha ao simular lead', variant: 'destructive' })
+      toast({
+        title: 'Erro',
+        description: e.message || 'Falha ao simular lead',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -212,7 +228,8 @@ export default function Leads() {
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start">
         {STAGES.map((stage) => {
-          const columnLeads = leads.filter((l) => l && l.status === stage)          return (
+          const columnLeads = leads.filter((l) => l && l.status === stage)
+          return (
             <div
               key={stage}
               className={cn(
@@ -254,7 +271,9 @@ export default function Leads() {
                         <CardTitle className="text-sm font-medium leading-tight">
                           {lead.name}
                         </CardTitle>
-                        <div title={lead.origin || 'Desconhecida'}>{getOriginIcon(lead.origin)}</div>
+                        <div title={lead.origin || 'Desconhecida'}>
+                          {getOriginIcon(lead.origin)}
+                        </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
                         <div className="text-xs text-muted-foreground">
