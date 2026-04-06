@@ -70,9 +70,10 @@ export default function Leads() {
   const loadLeads = async () => {
     try {
       const data = await getLeads()
-      setLeads(data)
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao carregar leads.', variant: 'destructive' })
+      if (data) setLeads(data)
+    } catch (err: any) {
+      console.error(err)
+      toast({ title: 'Erro', description: err.message || 'Falha ao carregar leads.', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -82,9 +83,10 @@ export default function Leads() {
     setIsChatLoading(true)
     try {
       const data = await getConversations(leadId)
-      setConversations(data)
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao carregar conversas.', variant: 'destructive' })
+      if (data) setConversations(data)
+    } catch (err: any) {
+      console.error(err)
+      toast({ title: 'Erro', description: err.message || 'Falha ao carregar conversas.', variant: 'destructive' })
     } finally {
       setIsChatLoading(false)
     }
@@ -138,16 +140,17 @@ export default function Leads() {
     try {
       if (isClient) {
         const clientMsg = await sendMessage(selectedLead.id, msg, 'client')
-        setConversations((prev) => [...prev, clientMsg])
+        if (clientMsg) setConversations((prev) => [...prev, clientMsg])
 
         const aiMsg = await getAIResponse(selectedLead.id, msg)
-        setConversations((prev) => [...prev, aiMsg])
+        if (aiMsg) setConversations((prev) => [...prev, aiMsg])
       } else {
         const sellerMsg = await sendMessage(selectedLead.id, msg, 'seller')
-        setConversations((prev) => [...prev, sellerMsg])
+        if (sellerMsg) setConversations((prev) => [...prev, sellerMsg])
       }
-    } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao enviar mensagem.', variant: 'destructive' })
+    } catch (err: any) {
+      console.error('Erro ao enviar mensagem:', err)
+      toast({ title: 'Erro', description: err.message || 'Falha ao enviar mensagem.', variant: 'destructive' })
     } finally {
       setIsChatLoading(false)
     }
@@ -160,23 +163,27 @@ export default function Leads() {
 
     const newLead = {
       name: names[Math.floor(Math.random() * names.length)],
-      phone: '119' + Math.floor(Math.random() * 90000000 + 10000000),
+      phone: '119' + String(Math.floor(Math.random() * 90000000) + 10000000),
       origin,
       status: 'Novo',
     }
 
     try {
       const created = await createLead(newLead)
+      if (!created || !created.id) throw new Error('Lead não retornou um ID válido.')
+      
       setLeads((prev) => [created, ...prev])
       toast({ title: 'Novo lead capturado!', description: `Lead via ${origin}` })
 
       await sendMessage(created.id, 'Olá, gostaria de um orçamento para festa infantil.', 'client')
-    } catch (e) {
-      toast({ title: 'Erro', description: 'Falha ao simular lead', variant: 'destructive' })
+    } catch (e: any) {
+      console.error('Erro ao simular lead:', e)
+      toast({ title: 'Erro', description: e.message || 'Falha ao simular lead', variant: 'destructive' })
     }
   }
 
-  const getOriginIcon = (origin: string) => {
+  const getOriginIcon = (origin?: string | null) => {
+    if (!origin) return <MessageCircle className="h-3 w-3" />
     switch (origin.toLowerCase()) {
       case 'whatsapp':
         return <Phone className="h-3 w-3 text-green-500" />
@@ -205,8 +212,7 @@ export default function Leads() {
 
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start">
         {STAGES.map((stage) => {
-          const columnLeads = leads.filter((l) => l.status === stage)
-          return (
+          const columnLeads = leads.filter((l) => l && l.status === stage)          return (
             <div
               key={stage}
               className={cn(
@@ -248,7 +254,7 @@ export default function Leads() {
                         <CardTitle className="text-sm font-medium leading-tight">
                           {lead.name}
                         </CardTitle>
-                        <div title={lead.origin}>{getOriginIcon(lead.origin)}</div>
+                        <div title={lead.origin || 'Desconhecida'}>{getOriginIcon(lead.origin)}</div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
                         <div className="text-xs text-muted-foreground">
@@ -256,7 +262,7 @@ export default function Leads() {
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-background">
-                            {lead.origin}
+                            {lead.origin || 'Desconhecida'}
                           </Badge>
                           <Button
                             variant="ghost"
@@ -294,7 +300,7 @@ export default function Leads() {
               <SheetDescription className="flex items-center gap-2 mt-1.5 font-medium">
                 {selectedLead && getOriginIcon(selectedLead.origin)}
                 <span>
-                  {selectedLead?.origin} • {selectedLead?.phone}
+                  {selectedLead?.origin || 'Desconhecida'} • {selectedLead?.phone || 'Sem telefone'}
                 </span>
               </SheetDescription>
             </SheetHeader>
