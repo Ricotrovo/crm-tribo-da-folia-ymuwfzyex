@@ -1,18 +1,27 @@
-import { useState, useEffect, Fragment } from 'react'
+import { useState, useEffect } from 'react'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Clock, MapPin, Plus, Users, Utensils, CalendarSync } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { eventService, EventRecord } from '@/services/events'
 import { supabase } from '@/lib/supabase/client'
-import { EventSheet } from '@/components/agenda/EventSheet'
-
-const TIME_SLOTS = ['12:00', '12:30', '13:00', '19:00', '19:30', '20:00']
-const SALONS = ['Premium', 'Kids&Teens'] as const
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const isPastDate = (d: Date) => {
   const today = new Date()
@@ -29,65 +38,13 @@ const formatDateForDb = (d: Date) => {
   return `${yyyy}-${mm}-${dd}`
 }
 
-const EventCard = ({
-  event,
-  onDragStart,
-}: {
-  event: EventRecord
-  onDragStart: (e: React.DragEvent) => void
-}) => {
-  const isPremium = event.salon === 'Premium'
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            draggable
-            onDragStart={onDragStart}
-            className={cn(
-              'cursor-grab active:cursor-grabbing p-3 rounded-md shadow-sm border-l-4 h-full flex flex-col justify-center',
-              isPremium
-                ? 'bg-blue-50 border-blue-500 hover:bg-blue-100'
-                : 'bg-emerald-50 border-emerald-500 hover:bg-emerald-100',
-            )}
-          >
-            <div className="font-semibold text-sm line-clamp-2 leading-tight">{event.title}</div>
-            <div className="text-xs text-muted-foreground mt-1 truncate">{event.client_name}</div>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="space-y-2 p-3 min-w-[200px] z-50 shadow-xl">
-          <p className="font-semibold text-base">{event.title}</p>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-muted-foreground" /> {event.time}
-            </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-muted-foreground" /> {event.salon}
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-muted-foreground" /> {event.guests}
-            </div>
-            <div className="flex items-center gap-1">
-              <Utensils className="w-3.5 h-3.5 text-muted-foreground" /> {event.menu}
-            </div>
-          </div>
-          <div className="pt-2">
-            <Badge variant={event.status === 'Confirmed' ? 'default' : 'secondary'}>
-              {event.status}
-            </Badge>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
 export default function Agenda() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [events, setEvents] = useState<EventRecord[]>([])
   const [loading, setLoading] = useState(false)
-  const [dragOverCell, setDragOverCell] = useState<string | null>(null)
   const [isEventSheetOpen, setIsEventSheetOpen] = useState(false)
+  const [newEventTitle, setNewEventTitle] = useState('')
+  const [newEventSalon, setNewEventSalon] = useState('Premium')
   const { toast } = useToast()
 
   useEffect(() => {
@@ -95,8 +52,8 @@ export default function Agenda() {
     loadEvents(date)
 
     const channel = supabase
-      .channel('events_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+      .channel('event_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event' }, () => {
         loadEvents(date)
       })
       .subscribe()
@@ -118,88 +75,22 @@ export default function Agenda() {
     }
   }
 
-  const handleDragStart = (e: React.DragEvent, event: EventRecord) => {
-    if (date && isPastDate(date)) {
-      e.preventDefault()
-      toast({
-        title: 'Ação não permitida',
-        description: 'Não é possível alterar eventos no passado.',
-        variant: 'destructive',
-      })
-      return
-    }
-    e.dataTransfer.setData('eventId', event.id)
-  }
-
-  const validateMove = (eventId: string, targetTime: string, targetSalon: string) => {
-    const targetIsLunch = ['12:00', '12:30', '13:00'].includes(targetTime)
-
-    const existingEvent = events.find(
-      (e) => e.time === targetTime && e.salon === targetSalon && e.id !== eventId,
-    )
-    if (existingEvent) return 'Salão indisponível neste horário.'
-
-    const salonEvents = events.filter((e) => e.salon === targetSalon && e.id !== eventId)
-    const hasLunch = salonEvents.find((e) => ['12:00', '12:30', '13:00'].includes(e.time))
-    const hasDinner = salonEvents.find((e) => ['19:00', '19:30', '20:00'].includes(e.time))
-
-    if (targetIsLunch && hasLunch) return 'Este salão já possui um evento de almoço neste dia.'
-    if (!targetIsLunch && hasDinner) return 'Este salão já possui um evento de jantar neste dia.'
-
-    if (targetIsLunch && targetTime === '13:00' && hasDinner && hasDinner.time !== '20:00') {
-      return 'Restrição: Almoço às 13h exige que o jantar seja às 20h. Já há um jantar em outro horário.'
-    }
-    if (!targetIsLunch && targetTime !== '20:00' && hasLunch && hasLunch.time === '13:00') {
-      return 'Restrição: Almoço às 13h exige que o jantar seja às 20h.'
-    }
-    return null
-  }
-
-  const handleDrop = async (
-    e: React.DragEvent,
-    targetTime: string,
-    targetSalon: 'Premium' | 'Kids&Teens',
-  ) => {
-    e.preventDefault()
-    setDragOverCell(null)
-
-    if (date && isPastDate(date)) {
-      toast({
-        title: 'Ação não permitida',
-        description: 'Não é possível alterar eventos no passado.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    const eventId = e.dataTransfer.getData('eventId')
-    if (!eventId) return
-
-    const event = events.find((ev) => ev.id === eventId)
-    if (!event) return
-    if (event.time === targetTime && event.salon === targetSalon) return
-
-    const errorMsg = validateMove(eventId, targetTime, targetSalon)
-    if (errorMsg) {
-      toast({ title: 'Conflito de Agenda', description: errorMsg, variant: 'destructive' })
-      return
-    }
-
-    // Optimistic update
-    setEvents((prev) =>
-      prev.map((ev) => (ev.id === eventId ? { ...ev, time: targetTime, salon: targetSalon } : ev)),
-    )
-
+  const handleCreateEvent = async () => {
+    if (!date || !newEventTitle) return
     try {
-      await eventService.updateEvent(eventId, { time: targetTime, salon: targetSalon })
-      toast({ title: 'Sucesso', description: 'O horário do evento foi alterado.' })
+      await supabase.from('event').insert([
+        {
+          title: newEventTitle,
+          salon: newEventSalon,
+          date: formatDateForDb(date),
+        },
+      ])
+      setIsEventSheetOpen(false)
+      setNewEventTitle('')
+      loadEvents(date)
+      toast({ title: 'Sucesso', description: 'Evento criado.' })
     } catch (err) {
-      toast({
-        title: 'Erro ao atualizar',
-        description: 'Não foi possível salvar a alteração.',
-        variant: 'destructive',
-      })
-      if (date) loadEvents(date) // Revert
+      toast({ title: 'Erro ao criar evento', variant: 'destructive' })
     }
   }
 
@@ -209,22 +100,10 @@ export default function Agenda() {
     <div className="space-y-6 fade-in-up pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Agenda Inteligente</h2>
-          <p className="text-muted-foreground">Gerencie eventos com proteção anti-overbooking.</p>
+          <h2 className="text-3xl font-bold tracking-tight">Agenda</h2>
+          <p className="text-muted-foreground">Gerencie seus eventos por data.</p>
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() =>
-              toast({
-                title: 'Sincronização iniciada',
-                description: 'Buscando eventos do Google Calendar...',
-              })
-            }
-          >
-            <CalendarSync className="mr-2 h-4 w-4" /> Sync Google
-          </Button>
           <Button className="w-full sm:w-auto" onClick={() => setIsEventSheetOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Novo Evento
           </Button>
@@ -243,25 +122,6 @@ export default function Agenda() {
               />
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Legenda dos Salões</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 bg-blue-50/50 p-2 rounded-md border border-blue-100">
-                <div className="w-4 h-4 rounded bg-blue-500 shadow-sm"></div>
-                <span className="font-medium text-blue-900">Premium</span>
-              </div>
-              <div className="flex items-center gap-3 bg-emerald-50/50 p-2 rounded-md border border-emerald-100">
-                <div className="w-4 h-4 rounded bg-emerald-500 shadow-sm"></div>
-                <span className="font-medium text-emerald-900">Kids & Teens</span>
-              </div>
-              <p className="text-xs text-muted-foreground pt-2 text-center">
-                Arraste os eventos para alterar o horário
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="lg:col-span-8 xl:col-span-9">
@@ -278,83 +138,62 @@ export default function Agenda() {
                 </div>
                 {isPast && (
                   <Badge variant="destructive" className="animate-fade-in text-xs py-1">
-                    Data no Passado (Somente Leitura)
+                    Data no Passado
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <div className="min-w-[650px] p-6">
-                <div className="grid grid-cols-[80px_1fr_1fr] gap-4 mb-4">
-                  <div className="font-bold text-center text-muted-foreground self-center text-sm">
-                    Horário
-                  </div>
-                  <div className="font-bold text-center text-blue-700 bg-blue-50 py-2 rounded-md border border-blue-100">
-                    Salão Premium
-                  </div>
-                  <div className="font-bold text-center text-emerald-700 bg-emerald-50 py-2 rounded-md border border-emerald-100">
-                    Salão Kids&Teens
-                  </div>
+            <CardContent className="p-6">
+              {events.length === 0 && !loading ? (
+                <div className="text-center text-muted-foreground py-10">
+                  Nenhum evento para esta data.
                 </div>
-
-                <div className="grid grid-cols-[80px_1fr_1fr] gap-4">
-                  {TIME_SLOTS.map((time) => (
-                    <Fragment key={time}>
-                      <div className="flex items-center justify-center font-medium bg-muted/30 rounded-md border border-muted-foreground/10 text-muted-foreground h-[110px] text-sm">
-                        {time}
+              ) : (
+                <div className="space-y-4">
+                  {events.map((event) => (
+                    <Card
+                      key={event.id}
+                      className="p-4 flex flex-col gap-2 shadow-sm border-l-4 border-l-primary"
+                    >
+                      <div className="font-semibold text-lg">{event.title}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Salão: {event.salon || 'N/A'}
                       </div>
-
-                      {SALONS.map((salon) => {
-                        const evt = events.find((e) => e.time === time && e.salon === salon)
-                        const cellId = `${time}-${salon}`
-                        const isOver = dragOverCell === cellId
-
-                        return (
-                          <div
-                            key={cellId}
-                            className={cn(
-                              'border-2 rounded-xl p-2 h-[110px] transition-all relative',
-                              isOver
-                                ? 'border-primary bg-primary/5 border-dashed scale-[1.02]'
-                                : 'border-dashed border-border/60 bg-transparent',
-                              !evt && !isOver && !isPast && 'hover:bg-muted/20 hover:border-border',
-                              isPast && !evt && 'bg-muted/5 border-transparent',
-                            )}
-                            onDragOver={(e) => {
-                              e.preventDefault()
-                              if (!isPast && dragOverCell !== cellId) setDragOverCell(cellId)
-                            }}
-                            onDrop={(e) => handleDrop(e, time, salon)}
-                            onDragLeave={() => setDragOverCell(null)}
-                          >
-                            {!evt && (
-                              <span className="absolute inset-0 flex items-center justify-center text-muted-foreground/40 text-xs font-medium opacity-0 hover:opacity-100 transition-opacity">
-                                Soltar aqui
-                              </span>
-                            )}
-                            {evt && (
-                              <EventCard event={evt} onDragStart={(e) => handleDragStart(e, evt)} />
-                            )}
-                          </div>
-                        )
-                      })}
-                    </Fragment>
+                    </Card>
                   ))}
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <EventSheet
-        open={isEventSheetOpen}
-        onOpenChange={setIsEventSheetOpen}
-        onSuccess={() => {
-          setIsEventSheetOpen(false)
-          if (date) loadEvents(date)
-        }}
-      />
+      <Dialog open={isEventSheetOpen} onOpenChange={setIsEventSheetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo Evento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="Título do evento"
+              value={newEventTitle}
+              onChange={(e) => setNewEventTitle(e.target.value)}
+            />
+            <Select value={newEventSalon} onValueChange={setNewEventSalon}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o salão" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Premium">Premium</SelectItem>
+                <SelectItem value="Kids&Teens">Kids&Teens</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateEvent}>Salvar Evento</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

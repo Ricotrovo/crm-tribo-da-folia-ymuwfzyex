@@ -4,17 +4,15 @@ export type EventRecord = {
   id: string
   title: string
   date: string
-  time: string
-  salon: 'Premium' | 'Kids&Teens'
-  client_name: string
-  guests: number
-  menu: string
-  status: string
+  salon: string
+  profile_id: string | null
+  created_at: string
+  updated_at: string | null
 }
 
 export const eventService = {
   async getEventsByDate(dateStr: string): Promise<EventRecord[]> {
-    const { data, error } = await supabase.from('events').select('*').eq('date', dateStr)
+    const { data, error } = await supabase.from('event').select('*').eq('date', dateStr)
 
     if (error) {
       throw error
@@ -25,7 +23,7 @@ export const eventService = {
 
   async updateEvent(id: string, updates: Partial<EventRecord>) {
     const { data, error } = await supabase
-      .from('events')
+      .from('event')
       .update(updates)
       .eq('id', id)
       .select()

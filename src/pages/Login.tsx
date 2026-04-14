@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth, Role } from '@/lib/auth'
+import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,16 +19,13 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const { login } = useAuth()
+  const { signIn } = useAuth()
   const navigate = useNavigate()
   const { toast } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-
-    // Mock network request delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     if (password.length < 8) {
       toast({
@@ -40,17 +37,9 @@ export default function Login() {
       return
     }
 
-    const roleMap: Record<string, Role> = {
-      'admin@tribo.com': 'admin',
-      'gerente@tribo.com': 'gerente',
-      'vendedor@tribo.com': 'vendedor',
-      'cozinha@tribo.com': 'cozinha',
-      'freelancer@tribo.com': 'freelancer',
-    }
+    const { error } = await signIn(email, password)
 
-    const userRole = roleMap[email.toLowerCase()]
-
-    if (!userRole) {
+    if (error) {
       toast({
         variant: 'destructive',
         title: 'Erro',
@@ -60,7 +49,6 @@ export default function Login() {
       return
     }
 
-    login(email, userRole)
     toast({
       title: 'Login realizado com sucesso',
       description: 'Redirecionando para o dashboard...',
@@ -103,7 +91,7 @@ export default function Login() {
                     e.preventDefault()
                     toast({
                       title: 'Recuperação de Senha',
-                      description: 'Link de recuperação enviado para seu email (simulação).',
+                      description: 'Verifique seu e-mail.',
                     })
                   }}
                 >
@@ -122,14 +110,10 @@ export default function Login() {
             </div>
             <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-md border border-border/50">
               <p className="font-semibold mb-1 text-foreground">
-                Contas de teste (senha &gt; 8 chars):
+                Conta de teste (senha: Skip@Pass):
               </p>
               <ul className="list-disc pl-4 space-y-0.5">
-                <li>admin@tribo.com</li>
-                <li>gerente@tribo.com</li>
-                <li>vendedor@tribo.com</li>
-                <li>cozinha@tribo.com</li>
-                <li>freelancer@tribo.com</li>
+                <li>r.trovo@gmail.com</li>
               </ul>
             </div>
           </CardContent>
