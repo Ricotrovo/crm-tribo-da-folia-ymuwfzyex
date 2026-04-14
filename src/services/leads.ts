@@ -76,7 +76,7 @@ export const sendMessage = async (
 }
 
 export const getAIResponse = async (leadId: string, message: string) => {
-  let aiMessage = 'Desculpe, não consegui processar no momento.'
+  let aiMessage = ''
   try {
     const { data, error } = await supabase.functions.invoke('chat-ai', {
       body: { lead_id: leadId, message },
@@ -84,10 +84,10 @@ export const getAIResponse = async (leadId: string, message: string) => {
     if (!error && data?.reply) {
       aiMessage = data.reply
     } else {
-      aiMessage = `Entendi sua pergunta: "${message}". No momento temos pacotes promocionais para festas no salão Premium e Kids&Teens. Gostaria de agendar uma visita ou que eu envie uma proposta detalhada?`
+      aiMessage = `O serviço de IA está temporariamente indisponível. Por favor, aguarde o atendimento humano.`
     }
   } catch (err) {
-    aiMessage = `Entendi sua pergunta: "${message}". No momento temos pacotes promocionais para festas no salão Premium e Kids&Teens. Gostaria de agendar uma visita ou que eu envie uma proposta detalhada?`
+    aiMessage = `O serviço de IA está temporariamente indisponível. Por favor, aguarde o atendimento humano.`
   }
 
   const { data: convData, error: convError } = await supabase

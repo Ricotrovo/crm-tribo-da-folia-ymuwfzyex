@@ -3,7 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { MessageCircle, Bot, User, Send, Phone, Instagram, Facebook, Sparkles } from 'lucide-react'
+import {
+  MessageCircle,
+  Bot,
+  User,
+  Send,
+  Phone,
+  Instagram,
+  Facebook,
+  Sparkles,
+  Plus,
+} from 'lucide-react'
+import { NewLeadDialog } from '@/components/leads/NewLeadDialog'
 import { useToast } from '@/hooks/use-toast'
 import {
   Sheet,
@@ -36,6 +47,7 @@ export default function Leads() {
   const [isChatLoading, setIsChatLoading] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
@@ -168,36 +180,6 @@ export default function Leads() {
     }
   }
 
-  const simulateNewLead = async () => {
-    const origins = ['WhatsApp', 'Instagram', 'Facebook']
-    const names = ['Ana Costa', 'Carlos Silva', 'Bruna Oliveira', 'Felipe Santos', 'Mariana Luz']
-    const origin = origins[Math.floor(Math.random() * origins.length)]
-
-    const newLead = {
-      name: names[Math.floor(Math.random() * names.length)],
-      phone: '119' + String(Math.floor(Math.random() * 90000000) + 10000000),
-      origin,
-      status: 'Novo',
-    }
-
-    try {
-      const created = await createLead(newLead)
-      if (!created || !created.id) throw new Error('Lead não retornou um ID válido.')
-
-      setLeads((prev) => [created, ...prev])
-      toast({ title: 'Novo lead capturado!', description: `Lead via ${origin}` })
-
-      await sendMessage(created.id, 'Olá, gostaria de um orçamento para festa infantil.', 'client')
-    } catch (e: any) {
-      console.error('Erro ao simular lead:', e)
-      toast({
-        title: 'Erro',
-        description: e.message || 'Falha ao simular lead',
-        variant: 'destructive',
-      })
-    }
-  }
-
   const getOriginIcon = (origin?: string | null) => {
     if (!origin) return <MessageCircle className="h-3 w-3" />
     switch (origin.toLowerCase()) {
@@ -221,8 +203,8 @@ export default function Leads() {
             Gerencie seus leads e deixe a IA atender automaticamente.
           </p>
         </div>
-        <Button onClick={simulateNewLead} variant="secondary">
-          <Sparkles className="mr-2 h-4 w-4 text-purple-500" /> Simular Novo Lead
+        <Button onClick={() => setIsNewLeadOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Novo Lead
         </Button>
       </div>
 
@@ -434,6 +416,8 @@ export default function Leads() {
           </div>
         </SheetContent>
       </Sheet>
+
+      <NewLeadDialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen} onSuccess={loadLeads} />
     </div>
   )
 }
