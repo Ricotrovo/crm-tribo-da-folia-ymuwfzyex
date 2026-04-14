@@ -1,3 +1,7 @@
+-- DDL Statements
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create Seed User
 DO $$
 DECLARE
@@ -25,9 +29,6 @@ BEGIN
     );
   END IF;
 END $$;
-
--- DDL Statements
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS public.clients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -224,22 +225,22 @@ BEGIN
     INSERT INTO public.stock (product_id, location, quantity)
     VALUES (NEW.product_id, NEW.location_to, NEW.quantity)
     ON CONFLICT (product_id, location) DO UPDATE
-    SET quantity = public.stock.quantity + NEW.quantity, updated_at = NOW();
+    SET quantity = stock.quantity + EXCLUDED.quantity, updated_at = NOW();
   ELSIF NEW.type = 'exit' THEN
     INSERT INTO public.stock (product_id, location, quantity)
     VALUES (NEW.product_id, NEW.location_from, -NEW.quantity)
     ON CONFLICT (product_id, location) DO UPDATE
-    SET quantity = public.stock.quantity - NEW.quantity, updated_at = NOW();
+    SET quantity = stock.quantity + EXCLUDED.quantity, updated_at = NOW();
   ELSIF NEW.type = 'transfer' THEN
     INSERT INTO public.stock (product_id, location, quantity)
     VALUES (NEW.product_id, NEW.location_from, -NEW.quantity)
     ON CONFLICT (product_id, location) DO UPDATE
-    SET quantity = public.stock.quantity - NEW.quantity, updated_at = NOW();
+    SET quantity = stock.quantity + EXCLUDED.quantity, updated_at = NOW();
 
     INSERT INTO public.stock (product_id, location, quantity)
     VALUES (NEW.product_id, NEW.location_to, NEW.quantity)
     ON CONFLICT (product_id, location) DO UPDATE
-    SET quantity = public.stock.quantity + NEW.quantity, updated_at = NOW();
+    SET quantity = stock.quantity + EXCLUDED.quantity, updated_at = NOW();
   END IF;
   RETURN NEW;
 END;
@@ -293,7 +294,7 @@ CREATE POLICY "authenticated_all_products" ON public.products FOR ALL TO authent
 CREATE POLICY "authenticated_all_stock" ON public.stock FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "authenticated_all_stock_movements" ON public.stock_movements FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- Insert Seed Data
+-- Insert Seed Data safely using idempotent ON CONFLICT DO NOTHING with explicitly provided UUIDs
 INSERT INTO public.products (id, name, unit, min_quantity, category) VALUES
 ('00000000-0000-0000-0000-000000000001', 'Refrigerante Cola 2L', 'UN', 10, 'Bebidas'),
 ('00000000-0000-0000-0000-000000000002', 'Copo Plástico 200ml', 'CX', 5, 'Descartáveis')
@@ -315,9 +316,9 @@ INSERT INTO public.freelancers (id, name, phone, status) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.freelancer_roles (id, freelancer_id, role, hourly_rate) VALUES
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000007', 'Monitor', 25.00),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000008', 'Garçom', 30.00)
-ON CONFLICT DO NOTHING;
+('00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000007', 'Monitor', 25.00),
+('00000000-0000-0000-0000-000000000012', '00000000-0000-0000-0000-000000000008', 'Garçom', 30.00)
+ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.clients (id, name, phone, email) VALUES
 ('00000000-0000-0000-0000-000000000009', 'Ana Silva', '11955555555', 'ana@email.com')
@@ -328,6 +329,6 @@ INSERT INTO public.contracts (id, client_id, event_id, base_value, total_value, 
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.payments (id, contract_id, amount, due_date, status, installment_number) VALUES
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000010', 1750.00, CURRENT_DATE - INTERVAL '2 days', 'Pago', 1),
-(gen_random_uuid(), '00000000-0000-0000-0000-000000000010', 1750.00, CURRENT_DATE + INTERVAL '28 days', 'Pendente', 2)
-ON CONFLICT DO NOTHING;
+('00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000010', 1750.00, CURRENT_DATE - INTERVAL '2 days', 'Pago', 1),
+('00000000-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000000010', 1750.00, CURRENT_DATE + INTERVAL '28 days', 'Pendente', 2)
+ON CONFLICT (id) DO NOTHING;
