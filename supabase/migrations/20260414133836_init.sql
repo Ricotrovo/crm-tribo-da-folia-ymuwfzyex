@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ETAPA 1: DDL E SCHEMA
 CREATE TABLE IF NOT EXISTS public.clients (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
