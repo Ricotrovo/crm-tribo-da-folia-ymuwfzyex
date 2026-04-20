@@ -3,7 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Calendar as CalendarIcon, Users as UsersIcon, MessageCircle } from 'lucide-react'
+import {
+  Plus,
+  Calendar as CalendarIcon,
+  Users as UsersIcon,
+  MessageCircle,
+  Search,
+  Loader2,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -28,10 +35,28 @@ import {
 } from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import { format } from 'date-fns'
+import { format, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
 const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
+
+const parseEventDate = (dateStr?: string) => {
+  if (!dateStr) return null
+  let d = new Date(dateStr + 'T12:00:00')
+  if (!isNaN(d.getTime())) return d
+
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/')
+    if (parts.length === 3) {
+      d = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`)
+      if (!isNaN(d.getTime())) return d
+    }
+  }
+
+  d = new Date(dateStr)
+  if (!isNaN(d.getTime())) return d
+  return null
+}
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([])
@@ -39,7 +64,9 @@ export default function Leads() {
   const [users, setUsers] = useState<User[]>([])
 
   // Filters
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [isSearching, setIsSearching] = useState(false)
   const [filterTemp, setFilterTemp] = useState<string>('all')
   const [filterSeller, setFilterSeller] = useState<string>('all')
   const [filterDateStart, setFilterDateStart] = useState<Date | undefined>()
@@ -47,7 +74,6 @@ export default function Leads() {
 
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
-  const [newLeadName, setNewLeadName] = useState('')
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
 
   const { toast } = useToast()
@@ -73,21 +99,41 @@ export default function Leads() {
     getUsers().then(setUsers).catch(console.error)
   }, [])
 
+  const handleSearch = () => {
+    setIsSearching(true)
+    setTimeout(() => {
+      setAppliedSearch(searchInput)
+      setIsSearching(false)
+    }, 400)
+  }
+
   const filteredLeads = leads.filter((l) => {
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      const matchName = l.name.toLowerCase().includes(searchLower)
-      const matchPhone =
-        l.phone?.includes(searchTerm.replace(/\D/g, '')) || l.phone?.includes(searchTerm)
+    if (appliedSearch) {
+      const searchLower = appliedSearch.toLowerCase()
+      const matchName = l.name?.toLowerCase().includes(searchLower)
+      const numericSearch = appliedSearch.replace(/\D/g, '')
+      const matchPhone = numericSearch ? l.phone?.replace(/\D/g, '').includes(numericSearch) : false
       if (!matchName && !matchPhone) return false
     }
     if (filterTemp !== 'all' && l.temperature !== filterTemp) return false
     if (filterSeller !== 'all' && l.profile_id !== filterSeller) return false
     if (filterDateStart || filterDateEnd) {
       if (!l.event_date) return false
-      const eventDate = new Date(l.event_date + 'T12:00:00')
-      if (filterDateStart && eventDate < filterDateStart) return false
-      if (filterDateEnd && eventDate > filterDateEnd) return false
+      const eventDate = parseEventDate(l.event_date)
+      if (!eventDate) return false
+
+      eventDate.setHours(0, 0, 0, 0)
+
+      if (filterDateStart && isValid(filterDateStart)) {
+        const start = new Date(filterDateStart)
+        start.setHours(0, 0, 0, 0)
+        if (eventDate < start) return false
+      }
+      if (filterDateEnd && isValid(filterDateEnd)) {
+        const end = new Date(filterDateEnd)
+        end.setHours(0, 0, 0, 0)
+        if (eventDate > end) return false
+      }
     }
     return true
   })
@@ -148,12 +194,28 @@ export default function Leads() {
       </div>
 
       <div className="flex flex-wrap gap-3 items-center bg-muted/30 p-3 rounded-lg border border-border/50">
-        <Input
-          placeholder="Buscar por nome ou telefone..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-[250px] bg-background"
-        />
+        <div className="flex w-full sm:max-w-[320px] items-center space-x-2">
+          <Input
+            placeholder="Buscar por nome ou telefone..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            className="bg-background"
+          />
+          <Button
+            onClick={handleSearch}
+            disabled={isSearching}
+            variant="default"
+            className="shrink-0"
+          >
+            {isSearching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            <span className="ml-2 hidden sm:inline">Buscar</span>
+          </Button>
+        </div>
 
         <Select value={filterTemp} onValueChange={setFilterTemp}>
           <SelectTrigger className="w-[160px] bg-background">
@@ -192,7 +254,7 @@ export default function Leads() {
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {filterDateStart
+                {filterDateStart && isValid(filterDateStart)
                   ? format(filterDateStart, 'dd/MM/yyyy', { locale: ptBR })
                   : 'Data Inicial'}
               </Button>
@@ -217,7 +279,7 @@ export default function Leads() {
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {filterDateEnd
+                {filterDateEnd && isValid(filterDateEnd)
                   ? format(filterDateEnd, 'dd/MM/yyyy', { locale: ptBR })
                   : 'Data Final'}
               </Button>
@@ -231,21 +293,24 @@ export default function Leads() {
               />
             </PopoverContent>
           </Popover>
+
           {(filterDateStart ||
             filterDateEnd ||
-            searchTerm ||
+            appliedSearch ||
+            searchInput ||
             filterTemp !== 'all' ||
             filterSeller !== 'all') && (
             <Button
               variant="ghost"
               onClick={() => {
-                setSearchTerm('')
+                setSearchInput('')
+                setAppliedSearch('')
                 setFilterTemp('all')
                 setFilterSeller('all')
                 setFilterDateStart(undefined)
                 setFilterDateEnd(undefined)
               }}
-              className="text-xs h-8 px-2"
+              className="text-xs h-8 px-2 ml-1"
             >
               Limpar
             </Button>
@@ -253,7 +318,12 @@ export default function Leads() {
         </div>
       </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start">
+      <div
+        className={cn(
+          'flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start transition-opacity duration-200',
+          isSearching ? 'opacity-60 pointer-events-none' : 'opacity-100',
+        )}
+      >
         {STAGES.map((stage) => {
           const columnLeads = filteredLeads.filter((l) => l && l.status === stage)
           return (
@@ -322,7 +392,10 @@ export default function Leads() {
                             <CalendarIcon className="w-3 h-3" />
                             <span>
                               Data do Evento:{' '}
-                              {new Date(lead.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                              {(() => {
+                                const d = parseEventDate(lead.event_date)
+                                return d ? d.toLocaleDateString('pt-BR') : lead.event_date
+                              })()}
                             </span>
                           </div>
                         )}
@@ -348,7 +421,13 @@ export default function Leads() {
                 )}
                 {!loading && columnLeads.length === 0 && (
                   <div className="text-center p-4 border-2 border-dashed border-border rounded-lg text-sm text-muted-foreground">
-                    Arraste leads para cá
+                    {appliedSearch ||
+                    filterTemp !== 'all' ||
+                    filterSeller !== 'all' ||
+                    filterDateStart ||
+                    filterDateEnd
+                      ? 'Nenhum lead encontrado'
+                      : 'Arraste leads para cá'}
                   </div>
                 )}
               </div>
