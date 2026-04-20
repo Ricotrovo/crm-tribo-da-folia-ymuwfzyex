@@ -129,7 +129,9 @@ export function FreelancerDetailsSheet({
             address_state: data.uf || prev.address_state,
           }))
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Erro ao buscar CEP:', e)
+      }
     }
   }
 
