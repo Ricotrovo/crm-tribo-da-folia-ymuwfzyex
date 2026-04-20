@@ -27,7 +27,9 @@ export function LeadInteractions({ leadId }: { leadId: string }) {
     try {
       const data = await getInteractions(leadId)
       setInteractions(data)
-    } catch (error) {}
+    } catch (error) {
+      console.error('Failed to load interactions:', error)
+    }
   }
 
   useEffect(() => {

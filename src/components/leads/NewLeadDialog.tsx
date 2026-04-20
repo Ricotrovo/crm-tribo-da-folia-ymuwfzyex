@@ -68,7 +68,9 @@ export function NewLeadDialog({
     try {
       const data = await getChildren(leadId)
       setChildren(data)
-    } catch (error) {}
+    } catch (error) {
+      console.error('Failed to load children:', error)
+    }
   }
 
   const handleCepChange = async (val: string) => {
@@ -90,7 +92,9 @@ export function NewLeadDialog({
           }))
           toast({ title: 'Endereço preenchido via CEP' })
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to fetch address via CEP:', e)
+      }
     }
   }
 
