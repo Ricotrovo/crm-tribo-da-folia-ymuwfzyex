@@ -212,19 +212,22 @@ export function LeadDetails({
                 <SheetDescription>Detalhes e histórico.</SheetDescription>
                 <div className="flex items-center gap-2 ml-2">
                   <Select
-                    value={lead.seller_id || lead.profile_id || ''}
-                    onValueChange={(v) => setLead({ ...lead, seller_id: v })}
-                    disabled={(!!lead.seller_id || !!lead.profile_id) && user?.role !== 'Gerente'}
+                    value={lead.seller_id || lead.profile_id || 'none'}
+                    onValueChange={(v) => setLead({ ...lead, seller_id: v === 'none' ? '' : v })}
+                    disabled={
+                      user?.role?.toLowerCase() !== 'gerente' &&
+                      user?.role_title?.toLowerCase() !== 'gerente'
+                    }
                   >
                     <SelectTrigger className="h-6 text-xs w-[140px] bg-background">
                       <SelectValue placeholder="Vendedor..." />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Sem vendedor</SelectItem>
                       {users
                         .filter(
                           (u) =>
-                            u.role === 'Vendedor' ||
-                            u.role_title === 'Vendedor' ||
+                            u.status !== 'inactive' ||
                             u.id === lead.seller_id ||
                             u.id === lead.profile_id,
                         )

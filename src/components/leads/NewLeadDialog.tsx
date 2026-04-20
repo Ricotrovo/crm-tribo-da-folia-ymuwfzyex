@@ -76,7 +76,7 @@ export function NewLeadDialog({
         })
         loadChildren(lead.id)
       } else {
-        setFormData({ origin: 'WhatsApp', status: 'Novo', seller_id: user?.id || null })
+        setFormData({ origin: 'WhatsApp', status: 'Novo', seller_id: user?.id || '' })
         setChildren([])
       }
       setDeletedChildrenIds([])
@@ -152,7 +152,7 @@ export function NewLeadDialog({
     setFieldErrors({})
     try {
       const payload = { ...formData }
-      if (!payload.seller_id && user?.id) {
+      if (payload.seller_id === undefined && user?.id) {
         payload.seller_id = user.id
       }
       payload.is_existing_client = !!payload.is_existing_client
@@ -360,21 +360,24 @@ export function NewLeadDialog({
                     <div className="space-y-2">
                       <Label htmlFor="seller_id">Vendedor</Label>
                       <Select
-                        value={formData.seller_id || formData.profile_id || ''}
-                        onValueChange={(v) => setFormData({ ...formData, seller_id: v })}
+                        value={formData.seller_id || formData.profile_id || 'none'}
+                        onValueChange={(v) =>
+                          setFormData({ ...formData, seller_id: v === 'none' ? '' : v })
+                        }
                         disabled={
-                          (!!lead?.seller_id || !!lead?.profile_id) && user?.role !== 'Gerente'
+                          user?.role?.toLowerCase() !== 'gerente' &&
+                          user?.role_title?.toLowerCase() !== 'gerente'
                         }
                       >
                         <SelectTrigger className={fieldErrors.seller_id ? 'border-red-500' : ''}>
                           <SelectValue placeholder="Selecione o vendedor..." />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="none">Sem vendedor</SelectItem>
                           {users
                             .filter(
                               (u) =>
-                                u.role === 'Vendedor' ||
-                                u.role_title === 'Vendedor' ||
+                                u.status !== 'inactive' ||
                                 u.id === formData.seller_id ||
                                 u.id === formData.profile_id,
                             )
