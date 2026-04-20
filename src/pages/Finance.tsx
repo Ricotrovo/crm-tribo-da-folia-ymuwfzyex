@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Plus } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import {
   Table,
   TableBody,
@@ -9,9 +14,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { TrendingUp, PlusCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
-import { format, isPast, isToday } from 'date-fns'
 import {
   Dialog,
   DialogContent,
@@ -19,140 +21,182 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
+import { createPayment } from '@/services/finance'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 export default function Finance() {
   const [payments, setPayments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false)
-  const [newAmount, setNewAmount] = useState('')
-  const [newDueDate, setNewDueDate] = useState('')
+  const [contracts, setContracts] = useState<any[]>([])
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [amount, setAmount] = useState('')
+  const [contractId, setContractId] = useState('')
+  const [status, setStatus] = useState('Pendente')
   const { toast } = useToast()
 
-  const fetchData = async () => {
-    setLoading(true)
-    const { data } = await supabase
-      .from('payment')
-      .select('*')
-      .order('due_date', { ascending: true })
-
-    setPayments(data || [])
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const handleCreatePayment = async () => {
-    if (!newAmount || !newDueDate) return
+  const fetchPayments = async () => {
+    setIsLoading(true)
     try {
-      await supabase.from('payment').insert([{ amount: Number(newAmount), due_date: newDueDate }])
-      setIsPaymentOpen(false)
-      setNewAmount('')
-      setNewDueDate('')
-      fetchData()
-      toast({ title: 'Sucesso', description: 'Pagamento registrado.' })
-    } catch (err) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      const [paymentsRes, contractsRes] = await Promise.all([
+        pb.collection('payments').getFullList({
+          sort: '-created',
+          expand: 'contract_id',
+        }),
+        pb.collection('contracts').getFullList({ sort: '-created' }),
+      ])
+      setPayments(paymentsRes || [])
+      setContracts(contractsRes || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+  useEffect(() => {
+    fetchPayments()
+  }, [])
+
+  useRealtime('payments', fetchPayments)
+
+  const handleCreatePayment = async () => {
+    if (!contractId || !amount) {
+      toast({
+        title: 'Erro',
+        description: 'Preencha o contrato e o valor.',
+        variant: 'destructive',
+      })
+      return
+    }
+    try {
+      await createPayment({
+        contract_id: contractId,
+        amount: Number(amount),
+        status: status,
+      })
+      setIsSheetOpen(false)
+      setAmount('')
+      setContractId('')
+      setStatus('Pendente')
+      fetchPayments()
+      toast({ title: 'Sucesso', description: 'Pagamento registrado.' })
+    } catch (err) {
+      const errors = extractFieldErrors(err)
+      if (errors.amount) {
+        toast({ title: 'Erro', description: errors.amount, variant: 'destructive' })
+      } else {
+        toast({ title: 'Erro ao criar', variant: 'destructive' })
+      }
+    }
   }
 
-  const totalPayments = payments.reduce((acc, curr) => acc + Number(curr.amount || 0), 0)
-
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Financeiro</h2>
-          <p className="text-muted-foreground">Gestão de pagamentos associados aos contratos.</p>
+          <h2 className="text-3xl font-bold tracking-tight">Financeiro</h2>
+          <p className="text-muted-foreground mt-1">Gerencie pagamentos e recebimentos.</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsPaymentOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Novo Pagamento
+        <div className="flex gap-2 items-center">
+          <Button onClick={() => setIsSheetOpen(true)} className="shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Novo Pagamento
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-1">
-        <Card className="hover:border-emerald-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total de Pagamentos Recebidos/Previstos
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(totalPayments)}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vencimento</TableHead>
-              <TableHead>ID Contrato</TableHead>
-              <TableHead>Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3 border-b">
+          <CardTitle>Todos os Pagamentos</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                  Carregando...
-                </TableCell>
+                <TableHead>Contrato</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Data</TableHead>
               </TableRow>
-            ) : payments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className="text-center py-6 text-muted-foreground">
-                  Nenhum pagamento registrado.
-                </TableCell>
-              </TableRow>
-            ) : (
-              payments.map((payment) => {
-                const isOverdue =
-                  payment.due_date &&
-                  isPast(new Date(payment.due_date)) &&
-                  !isToday(new Date(payment.due_date))
-                return (
-                  <TableRow key={payment.id}>
-                    <TableCell className={isOverdue ? 'text-rose-500 font-medium' : ''}>
-                      {payment.due_date ? format(new Date(payment.due_date), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    Carregando...
+                  </TableCell>
+                </TableRow>
+              ) : payments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                    Nenhum pagamento encontrado.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                payments.map((p) => (
+                  <TableRow key={p.id}>
                     <TableCell className="font-mono text-xs">
-                      {payment.contract_id?.split('-')[0] || '-'}
+                      {p.contract_id ? p.contract_id.split('-')[0] : 'N/A'}
                     </TableCell>
-                    <TableCell className="font-medium text-emerald-600">
-                      {formatCurrency(payment.amount)}
-                    </TableCell>
+                    <TableCell className="font-medium text-emerald-600">R$ {p.amount}</TableCell>
+                    <TableCell>{p.status}</TableCell>
+                    <TableCell>{new Date(p.created).toLocaleDateString('pt-BR')}</TableCell>
                   </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
 
-      <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
+      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Novo Pagamento</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Input
-              type="number"
-              placeholder="Valor (R$)"
-              value={newAmount}
-              onChange={(e) => setNewAmount(e.target.value)}
-            />
-            <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Contrato</label>
+              <Select value={contractId} onValueChange={setContractId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um contrato" />
+                </SelectTrigger>
+                <SelectContent>
+                  {contracts.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.id.split('-')[0]} - R$ {c.total_value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Valor</label>
+              <Input
+                type="number"
+                placeholder="Valor"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Status</label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pendente">Pendente</SelectItem>
+                  <SelectItem value="Pago">Pago</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={handleCreatePayment}>Salvar</Button>
