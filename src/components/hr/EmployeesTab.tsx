@@ -12,7 +12,8 @@ import { getUsers, User } from '@/services/users'
 import { useRealtime } from '@/hooks/use-realtime'
 import { EmployeeDetailsSheet } from './EmployeeDetailsSheet'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Plus, Pencil, Trash2, Search } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { deleteUser } from '@/services/users'
 import { useToast } from '@/hooks/use-toast'
@@ -33,6 +34,7 @@ export function EmployeesTab() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
   const { toast } = useToast()
 
   const loadData = async () => {
@@ -65,15 +67,35 @@ export function EmployeesTab() {
     }
   }
 
+  const filteredEmployees = employees.filter((emp) => {
+    const term = searchTerm.toLowerCase()
+    if (!term) return true
+
+    const matchName = emp.name?.toLowerCase().includes(term)
+    const matchEmail = emp.email?.toLowerCase().includes(term)
+    const matchCpf = emp.cpf?.replace(/\D/g, '').includes(term.replace(/\D/g, ''))
+
+    return matchName || matchEmail || matchCpf
+  })
+
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex flex-col sm:flex-row justify-between mb-4 gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, email ou CPF..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <Button
           onClick={() => {
             setSelectedUser(null)
             setIsSheetOpen(true)
           }}
-          className="shadow-sm"
+          className="shadow-sm sm:w-auto w-full"
         >
           <Plus className="mr-2 h-4 w-4" /> Novo Funcionário
         </Button>
@@ -98,14 +120,16 @@ export function EmployeesTab() {
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : employees.length === 0 ? (
+              ) : filteredEmployees.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
-                    Nenhum funcionário encontrado.
+                    {searchTerm
+                      ? 'Nenhum funcionário encontrado para a busca.'
+                      : 'Nenhum funcionário encontrado.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                employees.map((emp) => (
+                filteredEmployees.map((emp) => (
                   <TableRow key={emp.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-3">
