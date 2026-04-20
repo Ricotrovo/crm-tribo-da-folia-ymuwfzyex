@@ -71,8 +71,26 @@ export function EmployeeDetailsSheet({
   }
 
   const handleSave = async () => {
-    setSaving(true)
     setFieldErrors({})
+
+    if (!user) {
+      const errors: Record<string, string> = {}
+      if (!password) errors.password = 'Senha é obrigatória para novos funcionários.'
+      else if (password.length < 8) errors.password = 'A senha deve ter no mínimo 8 caracteres.'
+      if (!formData.email) errors.email = 'E-mail é obrigatório.'
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors)
+        toast({
+          title: 'Erro de validação',
+          description: Object.values(errors)[0],
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
+    setSaving(true)
     try {
       if (user) {
         await updateUser(user.id, {
@@ -87,11 +105,8 @@ export function EmployeeDetailsSheet({
         })
         toast({ title: 'Sucesso', description: 'Dados atualizados.' })
         onSaved()
+        onOpenChange(false)
       } else {
-        if (!password) throw new Error('Senha é obrigatória para novos funcionários.')
-        if (password.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres.')
-        if (!formData.email) throw new Error('E-mail é obrigatório.')
-
         await createUser({
           name: formData.name,
           email: formData.email,
@@ -109,8 +124,9 @@ export function EmployeeDetailsSheet({
         onOpenChange(false)
       }
     } catch (e: any) {
-      setFieldErrors(extractFieldErrors(e))
-      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
+      const errors = extractFieldErrors(e)
+      setFieldErrors(errors)
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setSaving(false)
     }
@@ -170,6 +186,9 @@ export function EmployeeDetailsSheet({
                 value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                className={
+                  fieldErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
               {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
@@ -180,6 +199,9 @@ export function EmployeeDetailsSheet({
                 value={formData.email || ''}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
+                className={
+                  fieldErrors.email ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
               {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
@@ -193,6 +215,9 @@ export function EmployeeDetailsSheet({
                   required
                   minLength={8}
                   placeholder="Mínimo de 8 caracteres"
+                  className={
+                    fieldErrors.password ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
                 />
                 {fieldErrors.password && (
                   <p className="text-xs text-destructive">{fieldErrors.password}</p>

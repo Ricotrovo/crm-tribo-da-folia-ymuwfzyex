@@ -24,10 +24,12 @@ import {
   createAttendanceLog,
   deleteAttendanceLog,
   getFreelancerFileUrl,
+  getFreelancerByPhone,
 } from '@/services/freelancers'
 import { useToast } from '@/hooks/use-toast'
 import { Trash2 } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function FreelancerDetailsSheet({
   freelancer,
@@ -45,6 +47,7 @@ export function FreelancerDetailsSheet({
   const [logs, setLogs] = useState<AttendanceLog[]>([])
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [isMinor, setIsMinor] = useState(false)
   const [authFile, setAuthFile] = useState<File | undefined>(undefined)
@@ -71,6 +74,7 @@ export function FreelancerDetailsSheet({
         setLogs([])
       }
       setAuthFile(undefined)
+      setFieldErrors({})
     }
   }, [freelancer, open])
 
@@ -85,7 +89,13 @@ export function FreelancerDetailsSheet({
   }
 
   const handleSaveData = async () => {
+    setFieldErrors({})
+
     if (isMinor && (!formData.guardian_name || !formData.guardian_phone)) {
+      const errors: Record<string, string> = {}
+      if (!formData.guardian_name) errors.guardian_name = 'Nome do responsável é obrigatório.'
+      if (!formData.guardian_phone) errors.guardian_phone = 'Telefone do responsável é obrigatório.'
+      setFieldErrors(errors)
       return toast({
         title: 'Atenção',
         description: 'Dados do responsável são obrigatórios para menores de idade.',
@@ -95,6 +105,20 @@ export function FreelancerDetailsSheet({
 
     setSaving(true)
     try {
+      if (formData.phone) {
+        const existing = await getFreelancerByPhone(formData.phone)
+        if (existing && existing.id !== freelancer?.id) {
+          setFieldErrors({ phone: 'Este telefone já está cadastrado para outro freelancer.' })
+          toast({
+            title: 'Erro de validação',
+            description: 'Este telefone já está cadastrado para outro freelancer.',
+            variant: 'destructive',
+          })
+          setSaving(false)
+          return
+        }
+      }
+
       const fd = new FormData()
       Object.keys(formData).forEach((key) => {
         const val = formData[key as keyof Freelancer]
@@ -116,7 +140,9 @@ export function FreelancerDetailsSheet({
       }
       onSaved()
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+      const errors = extractFieldErrors(e)
+      setFieldErrors(errors)
+      toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setSaving(false)
     }
@@ -186,7 +212,11 @@ export function FreelancerDetailsSheet({
               <Input
                 value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={
+                  fieldErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''
+                }
               />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -194,7 +224,13 @@ export function FreelancerDetailsSheet({
                 <Input
                   value={formData.phone || ''}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className={
+                    fieldErrors.phone ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
                 />
+                {fieldErrors.phone && (
+                  <p className="text-xs text-destructive">{fieldErrors.phone}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -233,7 +269,15 @@ export function FreelancerDetailsSheet({
                     value={formData.guardian_name || ''}
                     onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
                     required={isMinor}
+                    className={
+                      fieldErrors.guardian_name
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : ''
+                    }
                   />
+                  {fieldErrors.guardian_name && (
+                    <p className="text-xs text-destructive">{fieldErrors.guardian_name}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Telefone do Responsável *</Label>
@@ -241,7 +285,15 @@ export function FreelancerDetailsSheet({
                     value={formData.guardian_phone || ''}
                     onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
                     required={isMinor}
+                    className={
+                      fieldErrors.guardian_phone
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : ''
+                    }
                   />
+                  {fieldErrors.guardian_phone && (
+                    <p className="text-xs text-destructive">{fieldErrors.guardian_phone}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Autorização do Responsável (PDF/JPEG)</Label>

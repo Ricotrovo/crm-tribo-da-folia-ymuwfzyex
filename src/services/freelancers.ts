@@ -33,6 +33,15 @@ export const getFreelancers = async () => {
     .getFullList({ sort: '-created' })) as unknown as Freelancer[]
 }
 
+export const getFreelancerByPhone = async (phone: string) => {
+  try {
+    const record = await pb.collection('freelancers').getFirstListItem(`phone = '${phone}'`)
+    return record as unknown as Freelancer
+  } catch {
+    return null
+  }
+}
+
 export const createFreelancer = async (data: Partial<Freelancer> | FormData) => {
   return (await pb.collection('freelancers').create(data)) as unknown as Freelancer
 }

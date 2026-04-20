@@ -8,8 +8,21 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   if (!data || typeof data !== 'object') return {}
   const errors: FieldErrors = {}
   for (const [field, detail] of Object.entries(data)) {
-    if (detail && typeof detail === 'object' && 'message' in detail) {
-      errors[field] = (detail as { message: string }).message
+    if (detail && typeof detail === 'object') {
+      const code = (detail as any).code
+      let msg = (detail as any).message || 'Erro de validação'
+
+      if (code === 'validation_not_unique') {
+        msg = 'Este valor já está em uso.'
+        if (field === 'email') msg = 'Este e-mail já está em uso.'
+        if (field === 'phone') msg = 'Este telefone já está cadastrado.'
+      } else if (code === 'validation_required') {
+        msg = 'Este campo é obrigatório.'
+      } else if (code === 'validation_invalid_email') {
+        msg = 'E-mail inválido.'
+      }
+
+      errors[field] = msg
     }
   }
   return errors
@@ -17,8 +30,12 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
-    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+    return error instanceof Error ? error.message : 'Ocorreu um erro inesperado.'
   }
-  const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+  const errors = extractFieldErrors(error)
+  const msgs = Object.values(errors)
+  if (msgs.length > 0) {
+    return msgs[0] // Return the first specific field error message for the toast
+  }
+  return error.message || 'Ocorreu um erro inesperado.'
 }
