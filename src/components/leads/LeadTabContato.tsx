@@ -14,9 +14,10 @@ import { maskPhone } from '@/lib/formatters'
 interface Props {
   lead: Partial<Lead>
   onChange: (lead: Partial<Lead>) => void
+  fieldErrors?: Record<string, string>
 }
 
-export function LeadTabContato({ lead, onChange }: Props) {
+export function LeadTabContato({ lead, onChange, fieldErrors = {} }: Props) {
   const handleChange = (field: keyof Lead, value: string) => {
     onChange({ ...lead, [field]: value })
   }
@@ -31,7 +32,9 @@ export function LeadTabContato({ lead, onChange }: Props) {
           value={lead.name || ''}
           onChange={(e) => handleChange('name', e.target.value)}
           placeholder="Nome completo"
+          className={fieldErrors.name ? 'border-red-500' : ''}
         />
+        {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="grid gap-2">
@@ -40,7 +43,9 @@ export function LeadTabContato({ lead, onChange }: Props) {
             value={lead.phone || ''}
             onChange={(e) => handleChange('phone', maskPhone(e.target.value))}
             placeholder="(00) 00000-0000"
+            className={fieldErrors.phone ? 'border-red-500' : ''}
           />
+          {fieldErrors.phone && <p className="text-xs text-red-500">{fieldErrors.phone}</p>}
         </div>
         <div className="grid gap-2">
           <Label>E-mail</Label>
@@ -49,7 +54,9 @@ export function LeadTabContato({ lead, onChange }: Props) {
             onChange={(e) => handleChange('email', e.target.value)}
             type="email"
             placeholder="email@exemplo.com"
+            className={fieldErrors.email ? 'border-red-500' : ''}
           />
+          {fieldErrors.email && <p className="text-xs text-red-500">{fieldErrors.email}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

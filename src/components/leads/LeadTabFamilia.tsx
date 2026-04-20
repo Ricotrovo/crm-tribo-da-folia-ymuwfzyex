@@ -11,9 +11,10 @@ interface Props {
   lead: Partial<Lead>
   onChange: (lead: Partial<Lead>) => void
   leadId: string
+  fieldErrors?: Record<string, string>
 }
 
-export function LeadTabFamilia({ lead, onChange, leadId }: Props) {
+export function LeadTabFamilia({ lead, onChange, leadId, fieldErrors = {} }: Props) {
   const [children, setChildren] = useState<Child[]>([])
   const [newChildName, setNewChildName] = useState('')
   const [newChildBirth, setNewChildBirth] = useState('')
@@ -75,7 +76,11 @@ export function LeadTabFamilia({ lead, onChange, leadId }: Props) {
               type="date"
               value={lead.event_date || ''}
               onChange={(e) => onChange({ ...lead, event_date: e.target.value })}
+              className={fieldErrors.event_date ? 'border-red-500' : ''}
             />
+            {fieldErrors.event_date && (
+              <p className="text-xs text-red-500">{fieldErrors.event_date}</p>
+            )}
           </div>
           <div className="grid gap-2">
             <Label>Convidados (Qtd)</Label>
@@ -89,7 +94,11 @@ export function LeadTabFamilia({ lead, onChange, leadId }: Props) {
                 })
               }
               placeholder="Ex: 50"
+              className={fieldErrors.guest_count ? 'border-red-500' : ''}
             />
+            {fieldErrors.guest_count && (
+              <p className="text-xs text-red-500">{fieldErrors.guest_count}</p>
+            )}
           </div>
         </div>
       </div>

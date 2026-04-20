@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import {
   Dialog,
   DialogContent,
@@ -49,12 +51,20 @@ export function NewLeadDialog({
   const [children, setChildren] = useState<Partial<Child>[]>([])
   const [deletedChildrenIds, setDeletedChildrenIds] = useState<string[]>([])
   const [cpfError, setCpfError] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const { toast } = useToast()
+  const { user } = useAuth()
 
   useEffect(() => {
     if (open) {
       if (lead) {
-        setFormData(lead)
+        setFormData({
+          ...lead,
+          cpf: lead.cpf ? maskCPF(lead.cpf) : '',
+          phone: lead.phone ? maskPhone(lead.phone) : '',
+          rg: lead.rg ? maskRG(lead.rg) : '',
+          address_zip: lead.address_zip ? maskCEP(lead.address_zip) : '',
+        })
         loadChildren(lead.id)
       } else {
         setFormData({ origin: 'WhatsApp', status: 'Novo' })
@@ -62,6 +72,7 @@ export function NewLeadDialog({
       }
       setDeletedChildrenIds([])
       setCpfError(false)
+      setFieldErrors({})
     }
   }, [open, lead])
 
@@ -129,13 +140,36 @@ export function NewLeadDialog({
     }
 
     setLoading(true)
+    setFieldErrors({})
     try {
+      const payload = { ...formData }
+      if (!payload.profile_id && user?.id) {
+        payload.profile_id = user.id
+      }
+      payload.is_existing_client = !!payload.is_existing_client
+      payload.has_previous_events = !!payload.has_previous_events
+      if (
+        payload.guest_count !== undefined &&
+        payload.guest_count !== null &&
+        payload.guest_count !== ''
+      ) {
+        payload.guest_count = Number(payload.guest_count)
+      } else {
+        payload.guest_count = null as any
+      }
+      if (!payload.email) payload.email = ''
+
+      if (payload.cpf) payload.cpf = payload.cpf.replace(/\D/g, '')
+      if (payload.phone) payload.phone = payload.phone.replace(/\D/g, '')
+      if (payload.address_zip) payload.address_zip = payload.address_zip.replace(/\D/g, '')
+      if (payload.rg) payload.rg = payload.rg.replace(/[.-]/g, '')
+
       let savedLead: Lead
       if (lead?.id) {
-        savedLead = await updateLead(lead.id, formData)
+        savedLead = await updateLead(lead.id, payload)
         toast({ title: 'Lead atualizado com sucesso' })
       } else {
-        savedLead = await createLead({ ...formData, profile_id: null })
+        savedLead = await createLead(payload)
         toast({ title: 'Lead criado com sucesso' })
       }
 
@@ -155,7 +189,13 @@ export function NewLeadDialog({
       onSuccess()
       onOpenChange(false)
     } catch (error: any) {
-      toast({ title: 'Erro ao salvar lead', description: error.message, variant: 'destructive' })
+      const errors = extractFieldErrors(error)
+      setFieldErrors(errors)
+      toast({
+        title: 'Erro ao salvar lead',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -191,7 +231,9 @@ export function NewLeadDialog({
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                     placeholder="Ex: Maria Silva"
+                    className={fieldErrors.name ? 'border-red-500' : ''}
                   />
+                  {fieldErrors.name && <p className="text-xs text-red-500">{fieldErrors.name}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">WhatsApp / Telefone</Label>
@@ -200,7 +242,9 @@ export function NewLeadDialog({
                     value={formData.phone || ''}
                     onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
                     placeholder="(11) 99999-9999"
+                    className={fieldErrors.phone ? 'border-red-500' : ''}
                   />
+                  {fieldErrors.phone && <p className="text-xs text-red-500">{fieldErrors.phone}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
@@ -210,7 +254,9 @@ export function NewLeadDialog({
                     value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="email@exemplo.com"
+                    className={fieldErrors.email ? 'border-red-500' : ''}
                   />
+                  {fieldErrors.email && <p className="text-xs text-red-500">{fieldErrors.email}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="instagram">Instagram</Label>
@@ -313,7 +359,11 @@ export function NewLeadDialog({
                     type="date"
                     value={formData.event_date || ''}
                     onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                    className={fieldErrors.event_date ? 'border-red-500' : ''}
                   />
+                  {fieldErrors.event_date && (
+                    <p className="text-xs text-red-500">{fieldErrors.event_date}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="guest_count">Qtd. Convidados</Label>
@@ -328,7 +378,11 @@ export function NewLeadDialog({
                       })
                     }
                     placeholder="Ex: 50"
+                    className={fieldErrors.guest_count ? 'border-red-500' : ''}
                   />
+                  {fieldErrors.guest_count && (
+                    <p className="text-xs text-red-500">{fieldErrors.guest_count}</p>
+                  )}
                 </div>
               </div>
               <h3 className="font-semibold text-sm border-b pb-2">Família</h3>

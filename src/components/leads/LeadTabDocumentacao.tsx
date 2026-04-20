@@ -17,9 +17,10 @@ interface Props {
   lead: Partial<Lead>
   onChange: (lead: Partial<Lead>) => void
   onCpfValidChange?: (isValid: boolean) => void
+  fieldErrors?: Record<string, string>
 }
 
-export function LeadTabDocumentacao({ lead, onChange, onCpfValidChange }: Props) {
+export function LeadTabDocumentacao({ lead, onChange, onCpfValidChange, fieldErrors = {} }: Props) {
   const [cpfError, setCpfError] = useState(false)
   const { toast } = useToast()
 
@@ -70,9 +71,14 @@ export function LeadTabDocumentacao({ lead, onChange, onCpfValidChange }: Props)
             value={lead.cpf || ''}
             onChange={(e) => handleCpfChange(e.target.value)}
             placeholder="000.000.000-00"
-            className={cpfError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+            className={
+              cpfError || fieldErrors.cpf ? 'border-red-500 focus-visible:ring-red-500' : ''
+            }
           />
           {cpfError && <p className="text-xs text-red-500 mt-1">CPF Inválido</p>}
+          {fieldErrors.cpf && !cpfError && (
+            <p className="text-xs text-red-500 mt-1">{fieldErrors.cpf}</p>
+          )}
         </div>
         <div className="space-y-2">
           <Label>RG</Label>

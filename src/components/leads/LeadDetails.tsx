@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { getLead, updateLead, deleteLead, Lead } from '@/services/leads'
 import { useToast } from '@/hooks/use-toast'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { LeadTabContato } from './LeadTabContato'
 import { LeadTabFamilia } from './LeadTabFamilia'
 import { LeadTabContratos } from './LeadTabContratos'
 import { LeadTabDocumentacao } from './LeadTabDocumentacao'
 import { LeadInteractions } from './LeadInteractions'
-import { validateCPF } from '@/lib/formatters'
+import { validateCPF, maskCPF, maskPhone, maskRG, maskCEP } from '@/lib/formatters'
 import { Trash2 } from 'lucide-react'
 import {
   AlertDialog,
@@ -41,13 +42,21 @@ export function LeadDetails({
 }) {
   const [lead, setLead] = useState<Partial<Lead> | null>(null)
   const [loading, setLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const { toast } = useToast()
 
   const loadLead = async () => {
     if (!leadId) return
     try {
       const data = await getLead(leadId)
-      setLead(data)
+      setLead({
+        ...data,
+        cpf: data.cpf ? maskCPF(data.cpf) : '',
+        phone: data.phone ? maskPhone(data.phone) : '',
+        rg: data.rg ? maskRG(data.rg) : '',
+        address_zip: data.address_zip ? maskCEP(data.address_zip) : '',
+      })
+      setFieldErrors({})
     } catch (e) {
       console.error(e)
     }
@@ -77,14 +86,36 @@ export function LeadDetails({
       })
     }
     setLoading(true)
+    setFieldErrors({})
     try {
-      await updateLead(leadId, lead)
+      const payload = { ...lead }
+      payload.is_existing_client = !!payload.is_existing_client
+      payload.has_previous_events = !!payload.has_previous_events
+      if (
+        payload.guest_count !== undefined &&
+        payload.guest_count !== null &&
+        payload.guest_count !== ''
+      ) {
+        payload.guest_count = Number(payload.guest_count)
+      } else {
+        payload.guest_count = null as any
+      }
+      if (!payload.email) payload.email = ''
+
+      if (payload.cpf) payload.cpf = payload.cpf.replace(/\D/g, '')
+      if (payload.phone) payload.phone = payload.phone.replace(/\D/g, '')
+      if (payload.address_zip) payload.address_zip = payload.address_zip.replace(/\D/g, '')
+      if (payload.rg) payload.rg = payload.rg.replace(/[.-]/g, '')
+
+      await updateLead(leadId, payload)
       toast({ title: 'Sucesso', description: 'Lead atualizado com sucesso.' })
       onOpenChange(false)
     } catch (err: any) {
+      const errors = extractFieldErrors(err)
+      setFieldErrors(errors)
       toast({
         title: 'Erro',
-        description: err.message || 'Falha ao salvar lead.',
+        description: getErrorMessage(err),
         variant: 'destructive',
       })
     } finally {
@@ -155,13 +186,18 @@ export function LeadDetails({
 
           <div className="mt-4 pb-20">
             <TabsContent value="contato" className="animate-fade-in">
-              <LeadTabContato lead={lead} onChange={setLead} />
+              <LeadTabContato lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
             </TabsContent>
             <TabsContent value="familia" className="animate-fade-in">
-              <LeadTabFamilia lead={lead} onChange={setLead} leadId={leadId} />
+              <LeadTabFamilia
+                lead={lead}
+                onChange={setLead}
+                leadId={leadId}
+                fieldErrors={fieldErrors}
+              />
             </TabsContent>
             <TabsContent value="documentacao" className="animate-fade-in">
-              <LeadTabDocumentacao lead={lead} onChange={setLead} />
+              <LeadTabDocumentacao lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
             </TabsContent>
             <TabsContent value="contratos" className="animate-fade-in">
               <LeadTabContratos lead={lead} onChange={setLead} />
