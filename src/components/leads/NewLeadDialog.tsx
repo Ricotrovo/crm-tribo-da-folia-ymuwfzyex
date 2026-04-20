@@ -30,6 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { maskPhone, maskCPF, maskRG, maskCEP, validateCPF, calculateAge } from '@/lib/formatters'
 import { Plus, Trash2 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { LeadInteractions } from './LeadInteractions'
 
 export function NewLeadDialog({
@@ -171,7 +172,7 @@ export function NewLeadDialog({
           <Tabs defaultValue="basico" className="w-full mt-2">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="basico">Dados Básicos</TabsTrigger>
-              <TabsTrigger value="familia">Família</TabsTrigger>
+              <TabsTrigger value="familia">Evento/Família</TabsTrigger>
               <TabsTrigger value="documentacao">Documentação</TabsTrigger>
               <TabsTrigger value="historico" disabled={!lead?.id}>
                 Histórico
@@ -249,16 +250,88 @@ export function NewLeadDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Novo">Novo</SelectItem>
-                      <SelectItem value="Em Negociação">Em Negociação</SelectItem>
+                      <SelectItem value="Contato Inicial">Contato Inicial</SelectItem>
+                      <SelectItem value="Proposta">Proposta</SelectItem>
+                      <SelectItem value="Visita">Visita</SelectItem>
                       <SelectItem value="Fechado">Fechado</SelectItem>
-                      <SelectItem value="Perdido">Perdido</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="temperature">Temperatura</Label>
+                  <Select
+                    value={formData.temperature || ''}
+                    onValueChange={(v) => setFormData({ ...formData, temperature: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Quente">Quente 🔴</SelectItem>
+                      <SelectItem value="Morno">Morno 🟠</SelectItem>
+                      <SelectItem value="Frio">Frio 🔵</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="referral_info">Indicação de quem?</Label>
+                  <Input
+                    id="referral_info"
+                    value={formData.referral_info || ''}
+                    onChange={(e) => setFormData({ ...formData, referral_info: e.target.value })}
+                    placeholder="Nome da pessoa..."
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 bg-muted/30 p-4 rounded-lg border border-border/50">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="dialog_existing_client"
+                    checked={!!formData.is_existing_client}
+                    onCheckedChange={(c) => setFormData({ ...formData, is_existing_client: c })}
+                  />
+                  <Label htmlFor="dialog_existing_client">Já é cliente?</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="dialog_has_previous_events"
+                    checked={!!formData.has_previous_events}
+                    onCheckedChange={(c) => setFormData({ ...formData, has_previous_events: c })}
+                  />
+                  <Label htmlFor="dialog_has_previous_events">Já fez evento conosco?</Label>
                 </div>
               </div>
             </TabsContent>
 
             <TabsContent value="familia" className="space-y-4 py-4 animate-fade-in">
+              <h3 className="font-semibold text-sm border-b pb-2">Dados do Evento</h3>
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="event_date">Data do Evento</Label>
+                  <Input
+                    id="event_date"
+                    type="date"
+                    value={formData.event_date || ''}
+                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="guest_count">Qtd. Convidados</Label>
+                  <Input
+                    id="guest_count"
+                    type="number"
+                    value={formData.guest_count || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        guest_count: e.target.value ? Number(e.target.value) : undefined,
+                      })
+                    }
+                    placeholder="Ex: 50"
+                  />
+                </div>
+              </div>
+              <h3 className="font-semibold text-sm border-b pb-2">Família</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="spouse_name">Cônjuge / Parceiro(a)</Label>

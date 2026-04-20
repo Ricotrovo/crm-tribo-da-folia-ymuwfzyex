@@ -3,7 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus } from 'lucide-react'
+import {
+  Plus,
+  Phone as PhoneIcon,
+  Calendar as CalendarIcon,
+  Users as UsersIcon,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -18,6 +23,7 @@ import { getLeads, updateLeadStatus, createLead, Lead } from '@/services/leads'
 import { useRealtime } from '@/hooks/use-realtime'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { LeadDetails } from '@/components/leads/LeadDetails'
+import { NewLeadDialog } from '@/components/leads/NewLeadDialog'
 
 const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
 
@@ -53,22 +59,11 @@ export default function Leads() {
 
   useRealtime('leads', () => loadLeads())
 
-  const handleCreateLead = async () => {
-    if (!newLeadName.trim()) return
-    try {
-      await createLead({ name: newLeadName, status: 'Novo' })
-      setIsNewLeadOpen(false)
-      setNewLeadName('')
-      loadLeads()
-      toast({ title: 'Sucesso', description: 'Lead criado com sucesso!' })
-    } catch (err) {
-      const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.name) {
-        toast({ title: 'Erro', description: fieldErrors.name, variant: 'destructive' })
-      } else {
-        toast({ title: 'Erro', description: 'Falha ao criar lead.', variant: 'destructive' })
-      }
-    }
+  const getTemperatureColor = (temp?: string) => {
+    if (temp === 'Quente') return 'border-l-4 border-l-red-500'
+    if (temp === 'Morno') return 'border-l-4 border-l-orange-500'
+    if (temp === 'Frio') return 'border-l-4 border-l-blue-500'
+    return 'border-l-4 border-l-transparent'
   }
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
@@ -154,18 +149,50 @@ export default function Leads() {
                       onDragEnd={handleDragEnd}
                       onClick={() => setSelectedLeadId(lead.id)}
                       className={cn(
-                        'cursor-pointer active:cursor-grabbing hover:border-primary/50 transition-colors shadow-sm',
+                        'cursor-pointer active:cursor-grabbing hover:border-primary/50 transition-colors shadow-sm overflow-hidden',
                         draggingId === lead.id ? 'opacity-50' : 'opacity-100',
+                        getTemperatureColor(lead.temperature),
                       )}
                     >
                       <CardHeader className="p-3 pb-2 flex flex-row items-start justify-between">
-                        <CardTitle className="text-sm font-medium leading-tight">
+                        <CardTitle className="text-sm font-bold leading-tight">
                           {lead.name}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(lead.created).toLocaleDateString('pt-BR')}
+                        {lead.phone && (
+                          <div
+                            className="flex items-center text-xs text-muted-foreground gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <PhoneIcon className="w-3 h-3" />
+                            <a
+                              href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="hover:underline text-blue-600 dark:text-blue-400"
+                            >
+                              {lead.phone}
+                            </a>
+                          </div>
+                        )}
+                        {lead.event_date && (
+                          <div className="flex items-center text-xs text-muted-foreground gap-1.5">
+                            <CalendarIcon className="w-3 h-3" />
+                            <span>
+                              Data do Evento:{' '}
+                              {new Date(lead.event_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                            </span>
+                          </div>
+                        )}
+                        {lead.guest_count !== undefined && lead.guest_count !== null && (
+                          <div className="flex items-center text-xs text-muted-foreground gap-1.5">
+                            <UsersIcon className="w-3 h-3" />
+                            <span>{lead.guest_count} Convidados</span>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          Criado em: {new Date(lead.created).toLocaleDateString('pt-BR')}
                         </div>
                       </CardContent>
                     </Card>
@@ -192,23 +219,9 @@ export default function Leads() {
         />
       )}
 
-      <Dialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Lead</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            <Input
-              placeholder="Nome do lead"
-              value={newLeadName}
-              onChange={(e) => setNewLeadName(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button onClick={handleCreateLead}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {isNewLeadOpen && (
+        <NewLeadDialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen} onSuccess={loadLeads} />
+      )}
     </div>
   )
 }

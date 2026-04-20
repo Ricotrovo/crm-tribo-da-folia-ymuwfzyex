@@ -66,6 +66,34 @@ export function LeadTabFamilia({ lead, onChange, leadId }: Props) {
 
   return (
     <div className="space-y-6">
+      <div className="space-y-4 mb-6 pb-6 border-b">
+        <h4 className="font-semibold text-sm">Dados do Evento</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label>Data do Evento</Label>
+            <Input
+              type="date"
+              value={lead.event_date || ''}
+              onChange={(e) => onChange({ ...lead, event_date: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label>Convidados (Qtd)</Label>
+            <Input
+              type="number"
+              value={lead.guest_count || ''}
+              onChange={(e) =>
+                onChange({
+                  ...lead,
+                  guest_count: e.target.value ? Number(e.target.value) : undefined,
+                })
+              }
+              placeholder="Ex: 50"
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label>Nome do Cônjuge</Label>

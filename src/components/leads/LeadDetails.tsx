@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { LeadTabContato } from './LeadTabContato'
 import { LeadTabFamilia } from './LeadTabFamilia'
 import { LeadTabContratos } from './LeadTabContratos'
+import { LeadTabDocumentacao } from './LeadTabDocumentacao'
 import { LeadInteractions } from './LeadInteractions'
 import { validateCPF } from '@/lib/formatters'
 import { Trash2 } from 'lucide-react'
@@ -68,8 +69,12 @@ export function LeadDetails({
 
   const handleSave = async () => {
     if (!lead) return
-    if (lead.cpf && !validateCPF(lead.cpf)) {
-      return toast({ title: 'Erro', description: 'CPF inválido.', variant: 'destructive' })
+    if (lead.cpf && lead.cpf.length === 14 && !validateCPF(lead.cpf)) {
+      return toast({
+        title: 'Atenção',
+        description: 'O CPF informado é inválido. Corrija antes de salvar.',
+        variant: 'destructive',
+      })
     }
     setLoading(true)
     try {
@@ -142,7 +147,8 @@ export function LeadDetails({
         <Tabs defaultValue="contato" className="w-full">
           <TabsList className="w-full justify-start overflow-x-auto">
             <TabsTrigger value="contato">Contato</TabsTrigger>
-            <TabsTrigger value="familia">Família</TabsTrigger>
+            <TabsTrigger value="familia">Evento/Família</TabsTrigger>
+            <TabsTrigger value="documentacao">Documentação</TabsTrigger>
             <TabsTrigger value="contratos">Contratual</TabsTrigger>
             <TabsTrigger value="interacoes">Histórico</TabsTrigger>
           </TabsList>
@@ -153,6 +159,9 @@ export function LeadDetails({
             </TabsContent>
             <TabsContent value="familia" className="animate-fade-in">
               <LeadTabFamilia lead={lead} onChange={setLead} leadId={leadId} />
+            </TabsContent>
+            <TabsContent value="documentacao" className="animate-fade-in">
+              <LeadTabDocumentacao lead={lead} onChange={setLead} />
             </TabsContent>
             <TabsContent value="contratos" className="animate-fade-in">
               <LeadTabContratos lead={lead} onChange={setLead} />

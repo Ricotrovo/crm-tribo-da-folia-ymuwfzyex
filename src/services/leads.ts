@@ -20,6 +20,12 @@ export interface Lead {
   address_neighborhood?: string
   address_city?: string
   address_state?: string
+  temperature?: string
+  event_date?: string
+  guest_count?: number
+  is_existing_client?: boolean
+  has_previous_events?: boolean
+  referral_info?: string
   profile_id: string | null
   created: string
   updated: string
