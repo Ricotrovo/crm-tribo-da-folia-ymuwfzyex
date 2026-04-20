@@ -12,6 +12,22 @@ export interface User {
   crm_access_level?: string
   avatar: string
   created: string
+  rg?: string
+  cpf?: string
+  work_permit_number?: string
+  work_permit_series?: string
+  pix_key?: string
+  cnh_category?: string
+  address_street?: string
+  address_number?: string
+  address_neighborhood?: string
+  address_city?: string
+  address_state?: string
+  address_zip?: string
+  phone?: string
+  instagram?: string
+  tiktok?: string
+  emergency_contact?: string
 }
 
 export interface EmployeeDocument {
@@ -33,7 +49,7 @@ export const createUser = async (data: any) => {
   return record as unknown as User
 }
 
-export const updateUser = async (id: string, data: Partial<User>) => {
+export const updateUser = async (id: string, data: any) => {
   const record = await pb.collection('users').update(id, data)
   return record as unknown as User
 }

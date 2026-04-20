@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T20:15:22.108Z",
+  "generatedAt": "2026-04-20T20:27:56.552Z",
   "collections": [
     {
       "name": "users",
@@ -74,11 +74,108 @@
           "required": false,
           "system": false,
           "selectValues": ["none", "basic", "full"]
+        },
+        {
+          "name": "rg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "work_permit_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "work_permit_series",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pix_key",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnh_category",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_street",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_number",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_neighborhood",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_city",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_state",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address_zip",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "instagram",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tiktok",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "emergency_contact",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
-        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
+        "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''",
+        "CREATE UNIQUE INDEX `idx_users_cpf_unique` ON `users` (cpf) WHERE cpf != ''"
       ]
     },
     {

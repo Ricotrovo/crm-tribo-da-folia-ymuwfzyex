@@ -13,6 +13,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { EmployeeDetailsSheet } from './EmployeeDetailsSheet'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
 import { deleteUser } from '@/services/users'
 import { useToast } from '@/hooks/use-toast'
 import {
@@ -106,7 +107,22 @@ export function EmployeesTab() {
               ) : (
                 employees.map((emp) => (
                   <TableRow key={emp.id}>
-                    <TableCell className="font-medium">{emp.name || '-'}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        {emp.avatar ? (
+                          <img
+                            src={pb.files.getUrl(emp, emp.avatar, { thumb: '100x100' })}
+                            alt={emp.name}
+                            className="w-8 h-8 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-xs border">
+                            {emp.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </div>
+                        )}
+                        <span>{emp.name || '-'}</span>
+                      </div>
+                    </TableCell>
                     <TableCell>{emp.email}</TableCell>
                     <TableCell>{emp.role_title || emp.role || '-'}</TableCell>
                     <TableCell>
