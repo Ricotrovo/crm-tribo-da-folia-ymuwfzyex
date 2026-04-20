@@ -129,7 +129,13 @@ export default function Leads() {
       if (!matchName && !matchPhone) return false
     }
     if (filterTemp !== 'all' && l.temperature !== filterTemp) return false
-    if (filterSeller !== 'all' && l.profile_id !== filterSeller) return false
+    if (filterSeller !== 'all') {
+      if (filterSeller === 'none') {
+        if (l.seller_id || l.profile_id) return false
+      } else {
+        if (l.seller_id !== filterSeller && l.profile_id !== filterSeller) return false
+      }
+    }
     if (filterDateStart || filterDateEnd) {
       if (!l.event_date) return false
       const eventDate = parseEventDate(l.event_date)
@@ -248,6 +254,7 @@ export default function Leads() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos Vendedores</SelectItem>
+            <SelectItem value="none">Sem Vendedor</SelectItem>
             {users.map((u) => (
               <SelectItem key={u.id} value={u.id}>
                 {u.name || u.email}
@@ -426,11 +433,11 @@ export default function Leads() {
                                 ? new Date(lead.created).toLocaleDateString('pt-BR')
                                 : '-'}
                             </span>
-                            {lead.expand?.profile_id && (
-                              <span className="font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded truncate max-w-[100px]">
-                                {lead.expand.profile_id.name || 'Vendedor'}
-                              </span>
-                            )}
+                            <span className="font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                              {lead.expand?.seller_id?.name ||
+                                lead.expand?.profile_id?.name ||
+                                'Sem vendedor'}
+                            </span>
                           </div>
                           <div className="flex items-center justify-between text-[10px]">
                             <span className="text-muted-foreground">

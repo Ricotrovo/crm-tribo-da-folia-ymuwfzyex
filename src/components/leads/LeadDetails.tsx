@@ -213,7 +213,13 @@ export function LeadDetails({
                 <div className="flex items-center gap-2 ml-2">
                   <Select
                     value={lead.seller_id || lead.profile_id || 'none'}
-                    onValueChange={(v) => setLead({ ...lead, seller_id: v === 'none' ? '' : v })}
+                    onValueChange={(v) =>
+                      setLead({
+                        ...lead,
+                        seller_id: v === 'none' ? '' : v,
+                        profile_id: v === 'none' ? '' : v,
+                      })
+                    }
                     disabled={
                       user?.role?.toLowerCase() !== 'gerente' &&
                       user?.role_title?.toLowerCase() !== 'gerente'
