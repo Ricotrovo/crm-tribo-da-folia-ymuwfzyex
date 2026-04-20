@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Star } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import {
   Freelancer,
   getFreelancers,
@@ -112,19 +113,20 @@ export function FreelancersTab() {
                 <TableHead>Telefone</TableHead>
                 <TableHead>Média das Notas</TableHead>
                 <TableHead>Bairro</TableHead>
+                <TableHead>Funções</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : freelancers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
                     Nenhum freelancer encontrado.
                   </TableCell>
                 </TableRow>
@@ -158,6 +160,19 @@ export function FreelancersTab() {
                         </span>
                       ) : (
                         '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {f.expand?.categories && f.expand.categories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {f.expand.categories.map((cat) => (
+                            <Badge key={cat.id} variant="secondary" className="text-xs font-normal">
+                              {cat.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

@@ -23,6 +23,9 @@ export interface Freelancer {
   categories?: string[]
   guardian_authorization?: string
   created: string
+  expand?: {
+    categories?: FreelancerCategory[]
+  }
 }
 
 export interface FreelancerCategory {
@@ -59,7 +62,7 @@ export interface AttendanceLog {
 export const getFreelancers = async () => {
   return (await pb
     .collection('freelancers')
-    .getFullList({ sort: '-created' })) as unknown as Freelancer[]
+    .getFullList({ sort: '-created', expand: 'categories' })) as unknown as Freelancer[]
 }
 
 export const getFreelancerByPhone = async (phone: string) => {
