@@ -9,6 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getUsers, User } from '@/services/users'
+import { useRealtime } from '@/hooks/use-realtime'
 import { EmployeeDetailsSheet } from './EmployeeDetailsSheet'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
@@ -48,6 +49,10 @@ export function EmployeesTab() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useRealtime('users', () => {
+    loadData()
+  })
 
   const handleDelete = async (id: string) => {
     try {

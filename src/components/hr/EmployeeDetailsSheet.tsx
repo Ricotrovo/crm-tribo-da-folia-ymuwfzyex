@@ -22,6 +22,7 @@ import {
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Trash2, Download, Eye } from 'lucide-react'
+import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 
 export function EmployeeDetailsSheet({
   user,
@@ -44,6 +45,7 @@ export function EmployeeDetailsSheet({
   const [docType, setDocType] = useState('Identificação')
   const [docDesc, setDocDesc] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     if (open) {
@@ -55,6 +57,7 @@ export function EmployeeDetailsSheet({
         setPassword('')
         setDocs([])
       }
+      setFieldErrors({})
     }
   }, [user, open])
 
@@ -69,6 +72,7 @@ export function EmployeeDetailsSheet({
 
   const handleSave = async () => {
     setSaving(true)
+    setFieldErrors({})
     try {
       if (user) {
         await updateUser(user.id, {
@@ -85,6 +89,7 @@ export function EmployeeDetailsSheet({
         onSaved()
       } else {
         if (!password) throw new Error('Senha é obrigatória para novos funcionários.')
+        if (password.length < 8) throw new Error('A senha deve ter no mínimo 8 caracteres.')
         if (!formData.email) throw new Error('E-mail é obrigatório.')
 
         await createUser({
@@ -104,7 +109,8 @@ export function EmployeeDetailsSheet({
         onOpenChange(false)
       }
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+      setFieldErrors(extractFieldErrors(e))
+      toast({ title: 'Erro', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
       setSaving(false)
     }
@@ -165,6 +171,7 @@ export function EmployeeDetailsSheet({
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
+              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
             </div>
             <div className="space-y-2">
               <Label>E-mail *</Label>
@@ -174,6 +181,7 @@ export function EmployeeDetailsSheet({
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
               />
+              {fieldErrors.email && <p className="text-xs text-destructive">{fieldErrors.email}</p>}
             </div>
             {!user && (
               <div className="space-y-2">
@@ -183,7 +191,12 @@ export function EmployeeDetailsSheet({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={8}
+                  placeholder="Mínimo de 8 caracteres"
                 />
+                {fieldErrors.password && (
+                  <p className="text-xs text-destructive">{fieldErrors.password}</p>
+                )}
               </div>
             )}
             <div className="space-y-2">
@@ -216,7 +229,12 @@ export function EmployeeDetailsSheet({
               <Input
                 type="number"
                 value={formData.salary || ''}
-                onChange={(e) => setFormData({ ...formData, salary: Number(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    salary: e.target.value ? Number(e.target.value) : undefined,
+                  })
+                }
               />
             </div>
             <div className="space-y-2">
