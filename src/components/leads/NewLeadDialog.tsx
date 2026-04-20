@@ -19,7 +19,9 @@ import {
   getChildren,
   createChild,
   deleteChild,
+  getLeadByPhone,
 } from '@/services/leads'
+import { getUsers, User as AppUser } from '@/services/users'
 import { useToast } from '@/hooks/use-toast'
 import {
   Select,
@@ -54,6 +56,11 @@ export function NewLeadDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const { toast } = useToast()
   const { user } = useAuth()
+  const [users, setUsers] = useState<AppUser[]>([])
+
+  useEffect(() => {
+    getUsers().then(setUsers).catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -67,7 +74,7 @@ export function NewLeadDialog({
         })
         loadChildren(lead.id)
       } else {
-        setFormData({ origin: 'WhatsApp', status: 'Novo' })
+        setFormData({ origin: 'WhatsApp', status: 'Novo', profile_id: user?.id || null })
         setChildren([])
       }
       setDeletedChildrenIds([])
@@ -191,6 +198,21 @@ export function NewLeadDialog({
     } catch (error: any) {
       const errors = extractFieldErrors(error)
       setFieldErrors(errors)
+
+      if (errors.phone && formData.phone) {
+        const existing = await getLeadByPhone(formData.phone.replace(/\D/g, ''))
+        if (existing && existing.id !== lead?.id) {
+          const ownerName = existing.expand?.profile_id?.name || 'outro vendedor'
+          toast({
+            title: 'Lead Duplicado',
+            description: `Este lead já está cadastrado e sendo atendido por ${ownerName}.`,
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       toast({
         title: 'Erro ao salvar lead',
         description: getErrorMessage(error),
@@ -316,6 +338,25 @@ export function NewLeadDialog({
                       <SelectItem value="Quente">Quente 🔴</SelectItem>
                       <SelectItem value="Morno">Morno 🟠</SelectItem>
                       <SelectItem value="Frio">Frio 🔵</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_id">Vendedor (Responsável)</Label>
+                  <Select
+                    value={formData.profile_id || ''}
+                    onValueChange={(v) => setFormData({ ...formData, profile_id: v })}
+                    disabled={!!lead?.profile_id && user?.role !== 'Gerente'}
+                  >
+                    <SelectTrigger className={fieldErrors.profile_id ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Selecione o vendedor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name || u.email}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

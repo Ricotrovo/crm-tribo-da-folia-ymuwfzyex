@@ -14,17 +14,37 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { getLeads, updateLeadStatus, createLead, Lead } from '@/services/leads'
+import { getLeads, updateLeadStatus, Lead } from '@/services/leads'
 import { useRealtime } from '@/hooks/use-realtime'
-import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { LeadDetails } from '@/components/leads/LeadDetails'
 import { NewLeadDialog } from '@/components/leads/NewLeadDialog'
+import { getUsers, User } from '@/services/users'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { format } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [loading, setLoading] = useState(true)
+  const [users, setUsers] = useState<User[]>([])
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterTemp, setFilterTemp] = useState<string>('all')
+  const [filterSeller, setFilterSeller] = useState<string>('all')
+  const [filterDateStart, setFilterDateStart] = useState<Date | undefined>()
+  const [filterDateEnd, setFilterDateEnd] = useState<Date | undefined>()
+
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [newLeadName, setNewLeadName] = useState('')
@@ -50,7 +70,27 @@ export default function Leads() {
 
   useEffect(() => {
     loadLeads()
+    getUsers().then(setUsers).catch(console.error)
   }, [])
+
+  const filteredLeads = leads.filter((l) => {
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase()
+      const matchName = l.name.toLowerCase().includes(searchLower)
+      const matchPhone =
+        l.phone?.includes(searchTerm.replace(/\D/g, '')) || l.phone?.includes(searchTerm)
+      if (!matchName && !matchPhone) return false
+    }
+    if (filterTemp !== 'all' && l.temperature !== filterTemp) return false
+    if (filterSeller !== 'all' && l.profile_id !== filterSeller) return false
+    if (filterDateStart || filterDateEnd) {
+      if (!l.event_date) return false
+      const eventDate = new Date(l.event_date + 'T12:00:00')
+      if (filterDateStart && eventDate < filterDateStart) return false
+      if (filterDateEnd && eventDate > filterDateEnd) return false
+    }
+    return true
+  })
 
   useRealtime('leads', () => loadLeads())
 
@@ -107,9 +147,115 @@ export default function Leads() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-3 items-center bg-muted/30 p-3 rounded-lg border border-border/50">
+        <Input
+          placeholder="Buscar por nome ou telefone..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-[250px] bg-background"
+        />
+
+        <Select value={filterTemp} onValueChange={setFilterTemp}>
+          <SelectTrigger className="w-[160px] bg-background">
+            <SelectValue placeholder="Temperatura" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            <SelectItem value="Quente">Quente 🔴</SelectItem>
+            <SelectItem value="Morno">Morno 🟠</SelectItem>
+            <SelectItem value="Frio">Frio 🔵</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={filterSeller} onValueChange={setFilterSeller}>
+          <SelectTrigger className="w-[180px] bg-background">
+            <SelectValue placeholder="Vendedor" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos Vendedores</SelectItem>
+            {users.map((u) => (
+              <SelectItem key={u.id} value={u.id}>
+                {u.name || u.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'w-[140px] justify-start text-left font-normal bg-background',
+                  !filterDateStart && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateStart
+                  ? format(filterDateStart, 'dd/MM/yyyy', { locale: ptBR })
+                  : 'Data Inicial'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={filterDateStart}
+                onSelect={setFilterDateStart}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          <span className="text-muted-foreground text-sm">até</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'w-[140px] justify-start text-left font-normal bg-background',
+                  !filterDateEnd && 'text-muted-foreground',
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {filterDateEnd
+                  ? format(filterDateEnd, 'dd/MM/yyyy', { locale: ptBR })
+                  : 'Data Final'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={filterDateEnd}
+                onSelect={setFilterDateEnd}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {(filterDateStart ||
+            filterDateEnd ||
+            searchTerm ||
+            filterTemp !== 'all' ||
+            filterSeller !== 'all') && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSearchTerm('')
+                setFilterTemp('all')
+                setFilterSeller('all')
+                setFilterDateStart(undefined)
+                setFilterDateEnd(undefined)
+              }}
+              className="text-xs h-8 px-2"
+            >
+              Limpar
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start">
         {STAGES.map((stage) => {
-          const columnLeads = leads.filter((l) => l && l.status === stage)
+          const columnLeads = filteredLeads.filter((l) => l && l.status === stage)
           return (
             <div
               key={stage}
@@ -186,8 +332,15 @@ export default function Leads() {
                             <span>{lead.guest_count} Convidados</span>
                           </div>
                         )}
-                        <div className="text-[10px] text-muted-foreground mt-1">
-                          Criado em: {new Date(lead.created).toLocaleDateString('pt-BR')}
+                        <div className="flex items-center justify-between mt-1">
+                          <div className="text-[10px] text-muted-foreground">
+                            Criado: {new Date(lead.created).toLocaleDateString('pt-BR')}
+                          </div>
+                          {lead.expand?.profile_id && (
+                            <div className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                              {lead.expand.profile_id.name || 'Vendedor'}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

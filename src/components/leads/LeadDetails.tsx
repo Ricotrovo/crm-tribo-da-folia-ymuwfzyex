@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { getLead, updateLead, deleteLead, Lead } from '@/services/leads'
+import { getLead, updateLead, deleteLead, Lead, getLeadByPhone } from '@/services/leads'
 import { useToast } from '@/hooks/use-toast'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { LeadTabContato } from './LeadTabContato'
@@ -18,6 +18,16 @@ import { LeadTabDocumentacao } from './LeadTabDocumentacao'
 import { LeadInteractions } from './LeadInteractions'
 import { validateCPF, maskCPF, maskPhone, maskRG, maskCEP } from '@/lib/formatters'
 import { Trash2, MessageCircle } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useAuth } from '@/hooks/use-auth'
+import { getUsers, User } from '@/services/users'
+import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +53,13 @@ export function LeadDetails({
   const [lead, setLead] = useState<Partial<Lead> | null>(null)
   const [loading, setLoading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [users, setUsers] = useState<User[]>([])
   const { toast } = useToast()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    getUsers().then(setUsers).catch(console.error)
+  }, [])
 
   const loadLead = async () => {
     if (!leadId) return
@@ -113,6 +129,21 @@ export function LeadDetails({
     } catch (err: any) {
       const errors = extractFieldErrors(err)
       setFieldErrors(errors)
+
+      if (errors.phone && lead.phone) {
+        const existing = await getLeadByPhone(lead.phone.replace(/\D/g, ''))
+        if (existing && existing.id !== leadId) {
+          const ownerName = existing.expand?.profile_id?.name || 'outro vendedor'
+          toast({
+            title: 'Lead Duplicado',
+            description: `Este lead já está cadastrado e sendo atendido por ${ownerName}.`,
+            variant: 'destructive',
+          })
+          setLoading(false)
+          return
+        }
+      }
+
       toast({
         title: 'Erro',
         description: getErrorMessage(err),
@@ -147,7 +178,25 @@ export function LeadDetails({
             <div className="flex flex-col gap-1 text-left">
               <SheetTitle className="text-xl font-bold">{lead.name}</SheetTitle>
               <div className="flex items-center gap-2 flex-wrap mt-1">
-                <SheetDescription>Detalhes e histórico do lead.</SheetDescription>
+                <SheetDescription>Detalhes e histórico.</SheetDescription>
+                <div className="flex items-center gap-2 ml-2">
+                  <Select
+                    value={lead.profile_id || ''}
+                    onValueChange={(v) => setLead({ ...lead, profile_id: v })}
+                    disabled={!!lead.profile_id && user?.role !== 'Gerente'}
+                  >
+                    <SelectTrigger className="h-6 text-xs w-[140px]">
+                      <SelectValue placeholder="Vendedor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>
+                          {u.name || u.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {lead.phone && (
                   <a
                     href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}

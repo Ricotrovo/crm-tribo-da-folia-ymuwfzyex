@@ -27,6 +27,13 @@ export interface Lead {
   has_previous_events?: boolean
   referral_info?: string
   profile_id: string | null
+  expand?: {
+    profile_id?: {
+      id: string
+      name: string
+      role: string
+    }
+  }
   created: string
   updated: string
 }
@@ -52,13 +59,26 @@ export interface Interaction {
 }
 
 export const getLeads = async () => {
-  const records = await pb.collection('leads').getFullList({ sort: '-created' })
+  const records = await pb
+    .collection('leads')
+    .getFullList({ sort: '-created', expand: 'profile_id' })
   return records as unknown as Lead[]
 }
 
 export const getLead = async (id: string) => {
-  const record = await pb.collection('leads').getOne(id)
+  const record = await pb.collection('leads').getOne(id, { expand: 'profile_id' })
   return record as unknown as Lead
+}
+
+export const getLeadByPhone = async (phone: string) => {
+  try {
+    const record = await pb
+      .collection('leads')
+      .getFirstListItem(`phone = '${phone}'`, { expand: 'profile_id' })
+    return record as unknown as Lead
+  } catch {
+    return null
+  }
 }
 
 export const createLead = async (lead: Partial<Lead>) => {
