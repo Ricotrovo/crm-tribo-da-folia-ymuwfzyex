@@ -4,6 +4,7 @@ export interface Freelancer {
   id: string
   name: string
   status: string
+  cpf?: string
   birth_date?: string
   address_zip?: string
   address_street?: string
@@ -70,6 +71,15 @@ export const getFreelancerByPhone = async (phone: string) => {
   }
 }
 
+export const getFreelancerByCpf = async (cpf: string) => {
+  try {
+    const record = await pb.collection('freelancers').getFirstListItem(`cpf = '${cpf}'`)
+    return record as unknown as Freelancer
+  } catch {
+    return null
+  }
+}
+
 export const createFreelancer = async (data: Partial<Freelancer> | FormData) => {
   return (await pb.collection('freelancers').create(data)) as unknown as Freelancer
 }
@@ -121,6 +131,12 @@ export const updateFreelancerCategory = async (id: string, data: Partial<Freelan
 
 export const deleteFreelancerCategory = async (id: string) => {
   await pb.collection('freelancer_categories').delete(id)
+}
+
+export const getAllFreelancerEvaluations = async () => {
+  return (await pb
+    .collection('freelancer_evaluations')
+    .getFullList()) as unknown as FreelancerEvaluation[]
 }
 
 export const getFreelancerEvaluations = async (freelancerId: string) => {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T23:05:01.154Z",
+  "generatedAt": "2026-04-20T23:27:57.329Z",
   "collections": [
     {
       "name": "users",
@@ -781,9 +781,17 @@
           "required": false,
           "system": false,
           "collectionRef": "freelancer_categories"
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_freelancers_cpf_unique` ON `freelancers` (cpf) WHERE cpf != ''"
+      ]
     },
     {
       "name": "children",

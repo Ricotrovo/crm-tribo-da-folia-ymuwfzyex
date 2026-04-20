@@ -23,6 +23,7 @@ import {
   deleteAttendanceLog,
   getFreelancerFileUrl,
   getFreelancerByPhone,
+  getFreelancerByCpf,
   FreelancerCategory,
   getFreelancerCategories,
   FreelancerEvaluation,
@@ -33,7 +34,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { Trash2, Star } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
-import { maskPhone, maskCEP, calculateAge } from '@/lib/formatters'
+import { maskPhone, maskCEP, calculateAge, maskCPF, validateCPF } from '@/lib/formatters'
 
 export function FreelancerDetailsSheet({
   freelancer,
@@ -150,12 +151,31 @@ export function FreelancerDetailsSheet({
       })
     }
 
+    if (!formData.cpf) {
+      setFieldErrors((prev) => ({ ...prev, cpf: 'Obrigatório' }))
+      return toast({
+        title: 'Atenção',
+        description: 'O CPF é obrigatório.',
+        variant: 'destructive',
+      })
+    }
+
+    const cleanCpf = formData.cpf.replace(/\D/g, '')
+    if (!validateCPF(cleanCpf)) {
+      setFieldErrors((prev) => ({ ...prev, cpf: 'CPF inválido.' }))
+      return toast({
+        title: 'Erro de validação',
+        description: 'CPF inválido.',
+        variant: 'destructive',
+      })
+    }
+
     setSaving(true)
     try {
       if (formData.phone) {
         const existing = await getFreelancerByPhone(formData.phone)
         if (existing && existing.id !== freelancer?.id) {
-          setFieldErrors({ phone: 'Telefone já cadastrado para outro freelancer.' })
+          setFieldErrors((prev) => ({ ...prev, phone: 'Telefone já cadastrado.' }))
           toast({
             title: 'Erro de validação',
             description: 'Telefone já cadastrado para outro freelancer.',
@@ -166,12 +186,26 @@ export function FreelancerDetailsSheet({
         }
       }
 
+      const existingCpf = await getFreelancerByCpf(cleanCpf)
+      if (existingCpf && existingCpf.id !== freelancer?.id) {
+        setFieldErrors((prev) => ({ ...prev, cpf: 'CPF já cadastrado.' }))
+        toast({
+          title: 'Erro de validação',
+          description: 'CPF já cadastrado para outro freelancer.',
+          variant: 'destructive',
+        })
+        setSaving(false)
+        return
+      }
+
       const fd = new FormData()
       Object.keys(formData).forEach((key) => {
         const val = formData[key as keyof Freelancer]
         if (val !== undefined && val !== null) {
           if (key === 'categories') {
             ;(val as string[]).forEach((catId) => fd.append('categories', catId))
+          } else if (key === 'cpf') {
+            fd.append('cpf', cleanCpf)
           } else {
             fd.append(key, String(val))
           }
@@ -279,19 +313,33 @@ export function FreelancerDetailsSheet({
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Nome Completo</Label>
-              <Input
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={
-                  fieldErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''
-                }
-              />
-              {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label>Nome Completo *</Label>
+                <Input
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={
+                    fieldErrors.name ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
+                />
+                {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>CPF *</Label>
+                <Input
+                  value={formData.cpf ? maskCPF(formData.cpf) : ''}
+                  onChange={(e) => setFormData({ ...formData, cpf: maskCPF(e.target.value) })}
+                  placeholder="000.000.000-00"
+                  className={
+                    fieldErrors.cpf ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }
+                />
+                {fieldErrors.cpf && <p className="text-xs text-destructive">{fieldErrors.cpf}</p>}
+              </div>
               <div className="space-y-2">
                 <Label>Data de Nascimento</Label>
                 <div className="flex items-center gap-2">
@@ -300,12 +348,8 @@ export function FreelancerDetailsSheet({
                     value={formData.birth_date || ''}
                     onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
                   />
-                  {age !== null && (
-                    <span className="text-sm text-muted-foreground whitespace-nowrap">
-                      ({age} anos)
-                    </span>
-                  )}
                 </div>
+                {age !== null && <p className="text-xs text-muted-foreground">Idade: {age} anos</p>}
               </div>
               <div className="space-y-2">
                 <Label>Telefone</Label>

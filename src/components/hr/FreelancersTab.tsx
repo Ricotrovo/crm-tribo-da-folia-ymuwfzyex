@@ -9,16 +9,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Star } from 'lucide-react'
 import {
   Freelancer,
   getFreelancers,
-  getAttendanceLogs,
-  AttendanceLog,
   deleteFreelancer,
+  getAllFreelancerEvaluations,
+  FreelancerEvaluation,
 } from '@/services/freelancers'
 import { FreelancerDetailsSheet } from './FreelancerDetailsSheet'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,21 +31,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { maskCPF, maskPhone } from '@/lib/formatters'
 
 export function FreelancersTab() {
   const [freelancers, setFreelancers] = useState<Freelancer[]>([])
-  const [logs, setLogs] = useState<AttendanceLog[]>([])
+  const [evaluations, setEvaluations] = useState<FreelancerEvaluation[]>([])
   const [selectedFree, setSelectedFree] = useState<Freelancer | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { user } = useAuth()
+  const isManager = user?.role?.toLowerCase() === 'gerente'
 
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [fData, lData] = await Promise.all([getFreelancers(), getAttendanceLogs()])
+      const [fData, evData] = await Promise.all([getFreelancers(), getAllFreelancerEvaluations()])
       setFreelancers(fData)
-      setLogs(lData)
+      setEvaluations(evData)
     } catch (e) {
       console.error(e)
     } finally {
@@ -56,14 +60,22 @@ export function FreelancersTab() {
     loadData()
   }, [])
 
-  const calcIndex = (id: string) => {
-    const fLogs = logs.filter((l) => l.freelancer_id === id)
-    if (fLogs.length === 0) return '-'
-    const present = fLogs.filter((l) => l.status === 'present').length
-    const noShow = fLogs.filter((l) => l.status === 'no_show').length
-    const total = present + noShow
-    if (total === 0) return '-'
-    return `${Math.round((present / total) * 100)}%`
+  const calcAverageRating = (id: string) => {
+    const fEvals = evaluations.filter((e) => e.freelancer_id === id)
+    if (fEvals.length === 0) return '-'
+    const totalScore = fEvals.reduce(
+      (acc, ev) => acc + (ev.frequency + ev.punctuality + ev.participation + ev.education) / 4,
+      0,
+    )
+    return (totalScore / fEvals.length).toFixed(1)
+  }
+
+  const formatCpfDisplay = (cpf?: string) => {
+    if (!cpf) return '-'
+    const clean = cpf.replace(/\D/g, '')
+    if (clean.length !== 11) return cpf
+    if (isManager) return maskCPF(clean)
+    return `***.${clean.slice(3, 6)}.${clean.slice(6, 9)}-**`
   }
 
   const handleDelete = async (id: string) => {
@@ -95,39 +107,59 @@ export function FreelancersTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[140px]">ID (CPF)</TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Índice de Confiabilidade</TableHead>
-                <TableHead>Nota Geral</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead>Média das Notas</TableHead>
+                <TableHead>Bairro</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : freelancers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     Nenhum freelancer encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
                 freelancers.map((f) => (
-                  <TableRow key={f.id}>
-                    <TableCell className="font-medium">{f.name}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${f.status === 'Ativo' ? 'bg-emerald-100 text-emerald-800' : 'bg-muted text-muted-foreground'}`}
-                      >
-                        {f.status}
-                      </span>
+                  <TableRow key={f.id} className={f.status !== 'Ativo' ? 'opacity-60' : ''}>
+                    <TableCell className="font-mono text-sm text-muted-foreground">
+                      {formatCpfDisplay(f.cpf)}
                     </TableCell>
-                    <TableCell>{calcIndex(f.id)}</TableCell>
-                    <TableCell>{f.overall_rating ? `${f.overall_rating} / 10` : '-'}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {f.name}
+                        {f.status !== 'Ativo' && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
+                            Inativo
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{f.phone ? maskPhone(f.phone) : '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        {calcAverageRating(f.id)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {f.address_neighborhood ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-xs font-semibold shadow-sm">
+                          {f.address_neighborhood}
+                        </span>
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
