@@ -54,6 +54,22 @@ export function validateCPF(cpf: any): boolean {
   return true
 }
 
+export function formatCurrencyInput(value: string | number): string {
+  const numericValue = String(value).replace(/\D/g, '')
+  if (!numericValue) return ''
+  const number = parseInt(numericValue, 10) / 100
+  if (isNaN(number)) return ''
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(number)
+}
+
+export function parseCurrencyInput(value: string): number {
+  const numericValue = String(value).replace(/\D/g, '')
+  return numericValue ? parseInt(numericValue, 10) / 100 : 0
+}
+
 export function calculateAge(birthday: any): number {
   if (!birthday) return 0
   const birthDate = new Date(String(birthday))
