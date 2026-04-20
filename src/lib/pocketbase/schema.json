@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T18:31:38.726Z",
+  "generatedAt": "2026-04-20T18:50:25.128Z",
   "collections": [
     {
       "name": "users",
@@ -540,6 +540,24 @@
         {
           "name": "overall_rating",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "address",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "guardian_authorization",
+          "type": "file",
           "required": false,
           "system": false
         }

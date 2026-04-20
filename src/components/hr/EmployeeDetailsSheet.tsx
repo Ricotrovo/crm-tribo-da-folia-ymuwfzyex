@@ -14,6 +14,7 @@ import {
 import {
   User,
   updateUser,
+  createUser,
   getEmployeeDocuments,
   EmployeeDocument,
   deleteEmployeeDocument,
@@ -28,12 +29,13 @@ export function EmployeeDetailsSheet({
   onOpenChange,
   onSaved,
 }: {
-  user: User
+  user: User | null
   open: boolean
   onOpenChange: (open: boolean) => void
   onSaved: () => void
 }) {
   const [formData, setFormData] = useState<Partial<User>>({})
+  const [password, setPassword] = useState('')
   const [docs, setDocs] = useState<EmployeeDocument[]>([])
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
@@ -45,14 +47,20 @@ export function EmployeeDetailsSheet({
 
   useEffect(() => {
     if (open) {
-      setFormData(user)
-      loadDocs()
+      if (user) {
+        setFormData(user)
+        loadDocs(user.id)
+      } else {
+        setFormData({})
+        setPassword('')
+        setDocs([])
+      }
     }
   }, [user, open])
 
-  const loadDocs = async () => {
+  const loadDocs = async (id: string) => {
     try {
-      const data = await getEmployeeDocuments(user.id)
+      const data = await getEmployeeDocuments(id)
       setDocs(data)
     } catch (e) {
       console.error(e)
@@ -62,15 +70,39 @@ export function EmployeeDetailsSheet({
   const handleSave = async () => {
     setSaving(true)
     try {
-      await updateUser(user.id, {
-        role_title: formData.role_title,
-        salary: formData.salary ? Number(formData.salary) : undefined,
-        admission_date: formData.admission_date,
-        vacation_info: formData.vacation_info,
-        crm_access_level: formData.crm_access_level || 'none',
-      })
-      toast({ title: 'Sucesso', description: 'Dados atualizados.' })
-      onSaved()
+      if (user) {
+        await updateUser(user.id, {
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          role_title: formData.role_title,
+          salary: formData.salary ? Number(formData.salary) : undefined,
+          admission_date: formData.admission_date,
+          vacation_info: formData.vacation_info,
+          crm_access_level: formData.crm_access_level || 'none',
+        })
+        toast({ title: 'Sucesso', description: 'Dados atualizados.' })
+        onSaved()
+      } else {
+        if (!password) throw new Error('Senha é obrigatória para novos funcionários.')
+        if (!formData.email) throw new Error('E-mail é obrigatório.')
+
+        await createUser({
+          name: formData.name,
+          email: formData.email,
+          password: password,
+          passwordConfirm: password,
+          role: formData.role,
+          role_title: formData.role_title,
+          salary: formData.salary ? Number(formData.salary) : undefined,
+          admission_date: formData.admission_date,
+          vacation_info: formData.vacation_info,
+          crm_access_level: formData.crm_access_level || 'none',
+        })
+        toast({ title: 'Sucesso', description: 'Funcionário criado.' })
+        onSaved()
+        onOpenChange(false)
+      }
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     } finally {
@@ -80,7 +112,7 @@ export function EmployeeDetailsSheet({
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!file) return
+    if (!file || !user) return
     setUploading(true)
     try {
       const fd = new FormData()
@@ -91,7 +123,7 @@ export function EmployeeDetailsSheet({
       await pb.collection('employee_documents').create(fd)
       setFile(null)
       setDocDesc('')
-      loadDocs()
+      loadDocs(user.id)
       toast({ title: 'Documento enviado.' })
     } catch (e: any) {
       toast({ title: 'Erro ao enviar', description: e.message, variant: 'destructive' })
@@ -101,9 +133,10 @@ export function EmployeeDetailsSheet({
   }
 
   const handleDelDoc = async (id: string) => {
+    if (!user) return
     try {
       await deleteEmployeeDocument(id)
-      loadDocs()
+      loadDocs(user.id)
       toast({ title: 'Documento excluído.' })
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
@@ -114,15 +147,62 @@ export function EmployeeDetailsSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>{user.name} - Detalhes</SheetTitle>
+          <SheetTitle>{user ? `${user.name} - Detalhes` : 'Novo Funcionário'}</SheetTitle>
         </SheetHeader>
         <Tabs defaultValue="dados" className="mt-4">
           <TabsList className="w-full grid grid-cols-2">
             <TabsTrigger value="dados">Dados Profissionais</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos</TabsTrigger>
+            <TabsTrigger value="documentos" disabled={!user}>
+              Documentos
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dados" className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Nome Completo *</Label>
+              <Input
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>E-mail *</Label>
+              <Input
+                type="email"
+                value={formData.email || ''}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+            {!user && (
+              <div className="space-y-2">
+                <Label>Senha Temporária *</Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Perfil de Acesso (Role)</Label>
+              <Select
+                value={formData.role || ''}
+                onValueChange={(v) => setFormData({ ...formData, role: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Administrador</SelectItem>
+                  <SelectItem value="Gerente">Gerente</SelectItem>
+                  <SelectItem value="Vendedor">Vendedor</SelectItem>
+                  <SelectItem value="Operacional">Operacional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Cargo / Título</Label>
               <Input
@@ -171,7 +251,11 @@ export function EmployeeDetailsSheet({
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleSave} disabled={saving} className="w-full mt-4">
+            <Button
+              onClick={handleSave}
+              disabled={saving || !formData.email || (!user && !password)}
+              className="w-full mt-4"
+            >
               {saving ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </TabsContent>

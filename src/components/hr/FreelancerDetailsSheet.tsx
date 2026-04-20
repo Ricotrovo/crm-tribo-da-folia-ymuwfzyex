@@ -23,9 +23,11 @@ import {
   getAttendanceLogs,
   createAttendanceLog,
   deleteAttendanceLog,
+  getFreelancerFileUrl,
 } from '@/services/freelancers'
 import { useToast } from '@/hooks/use-toast'
 import { Trash2 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 
 export function FreelancerDetailsSheet({
   freelancer,
@@ -44,6 +46,9 @@ export function FreelancerDetailsSheet({
   const [saving, setSaving] = useState(false)
   const { toast } = useToast()
 
+  const [isMinor, setIsMinor] = useState(false)
+  const [authFile, setAuthFile] = useState<File | undefined>(undefined)
+
   const [newRole, setNewRole] = useState('')
   const [newPay, setNewPay] = useState('')
   const [newDate, setNewDate] = useState('')
@@ -53,12 +58,19 @@ export function FreelancerDetailsSheet({
     if (open) {
       if (freelancer) {
         setFormData(freelancer)
+        setIsMinor(
+          !!freelancer.guardian_name ||
+            !!freelancer.guardian_phone ||
+            !!freelancer.guardian_authorization,
+        )
         loadDeps(freelancer.id)
       } else {
         setFormData({ status: 'Ativo' })
+        setIsMinor(false)
         setRoles([])
         setLogs([])
       }
+      setAuthFile(undefined)
     }
   }, [freelancer, open])
 
@@ -73,13 +85,32 @@ export function FreelancerDetailsSheet({
   }
 
   const handleSaveData = async () => {
+    if (isMinor && (!formData.guardian_name || !formData.guardian_phone)) {
+      return toast({
+        title: 'Atenção',
+        description: 'Dados do responsável são obrigatórios para menores de idade.',
+        variant: 'destructive',
+      })
+    }
+
     setSaving(true)
     try {
+      const fd = new FormData()
+      Object.keys(formData).forEach((key) => {
+        const val = formData[key as keyof Freelancer]
+        if (val !== undefined && val !== null) {
+          fd.append(key, String(val))
+        }
+      })
+      if (authFile) {
+        fd.append('guardian_authorization', authFile)
+      }
+
       if (freelancer?.id) {
-        await updateFreelancer(freelancer.id, formData)
+        await updateFreelancer(freelancer.id, fd)
         toast({ title: 'Sucesso', description: 'Freelancer atualizado.' })
       } else {
-        await createFreelancer(formData)
+        await createFreelancer(fd)
         toast({ title: 'Sucesso', description: 'Freelancer criado.' })
         onOpenChange(false)
       }
@@ -157,36 +188,83 @@ export function FreelancerDetailsSheet({
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={formData.status || 'Ativo'}
-                onValueChange={(v) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Ativo">Ativo</SelectItem>
-                  <SelectItem value="Inativo">Inativo</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  value={formData.phone || ''}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status || 'Ativo'}
+                  onValueChange={(v) => setFormData({ ...formData, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Ativo">Ativo</SelectItem>
+                    <SelectItem value="Inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Nome do Responsável (se menor)</Label>
+              <Label>Endereço</Label>
               <Input
-                value={formData.guardian_name || ''}
-                onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                value={formData.address || ''}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Telefone do Responsável</Label>
-              <Input
-                value={formData.guardian_phone || ''}
-                onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
-              />
+
+            <div className="flex items-center space-x-2 mt-4 bg-muted/40 p-3 rounded-lg border">
+              <Switch checked={isMinor} onCheckedChange={setIsMinor} id="is_minor" />
+              <Label htmlFor="is_minor">É menor de idade? (Requer dados do responsável)</Label>
             </div>
-            <div className="space-y-2">
+
+            {isMinor && (
+              <div className="space-y-4 bg-muted/20 p-4 rounded-lg border mt-2">
+                <div className="space-y-2">
+                  <Label>Nome do Responsável *</Label>
+                  <Input
+                    value={formData.guardian_name || ''}
+                    onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                    required={isMinor}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone do Responsável *</Label>
+                  <Input
+                    value={formData.guardian_phone || ''}
+                    onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
+                    required={isMinor}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Autorização do Responsável (PDF/JPEG)</Label>
+                  <Input
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png"
+                    onChange={(e) => setAuthFile(e.target.files?.[0] || undefined)}
+                  />
+                  {freelancer?.guardian_authorization && (
+                    <a
+                      href={getFreelancerFileUrl(freelancer, freelancer.guardian_authorization)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-blue-500 hover:underline inline-block mt-1"
+                    >
+                      Ver documento atual salvo
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2 mt-4">
               <Label>Nota Geral de Avaliação (0 a 10)</Label>
               <Input
                 type="number"

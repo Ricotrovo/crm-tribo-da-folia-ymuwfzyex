@@ -11,12 +11,27 @@ import {
 import { getUsers, User } from '@/services/users'
 import { EmployeeDetailsSheet } from './EmployeeDetailsSheet'
 import { Button } from '@/components/ui/button'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { deleteUser } from '@/services/users'
+import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export function EmployeesTab() {
   const [employees, setEmployees] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
   const loadData = async () => {
     setIsLoading(true)
@@ -34,8 +49,30 @@ export function EmployeesTab() {
     loadData()
   }, [])
 
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteUser(id)
+      toast({ title: 'Funcionário excluído.' })
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' })
+    }
+  }
+
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <Button
+          onClick={() => {
+            setSelectedUser(null)
+            setIsSheetOpen(true)
+          }}
+          className="shadow-sm"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Novo Funcionário
+        </Button>
+      </div>
+
       <Card className="shadow-sm">
         <CardContent className="p-0">
           <Table>
@@ -73,16 +110,46 @@ export function EmployeesTab() {
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(emp)
-                          setIsSheetOpen(true)
-                        }}
-                      >
-                        Ver Detalhes
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedUser(emp)
+                            setIsSheetOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir funcionário?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Todos os dados serão perdidos.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(emp.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -91,17 +158,15 @@ export function EmployeesTab() {
           </Table>
         </CardContent>
       </Card>
-      {selectedUser && (
-        <EmployeeDetailsSheet
-          user={selectedUser}
-          open={isSheetOpen}
-          onOpenChange={(open) => {
-            setIsSheetOpen(open)
-            if (!open) setTimeout(() => setSelectedUser(null), 300)
-          }}
-          onSaved={loadData}
-        />
-      )}
+      <EmployeeDetailsSheet
+        user={selectedUser}
+        open={isSheetOpen}
+        onOpenChange={(open) => {
+          setIsSheetOpen(open)
+          if (!open) setTimeout(() => setSelectedUser(null), 300)
+        }}
+        onSaved={loadData}
+      />
     </>
   )
 }

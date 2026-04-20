@@ -9,14 +9,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import {
   Freelancer,
   getFreelancers,
   getAttendanceLogs,
   AttendanceLog,
+  deleteFreelancer,
 } from '@/services/freelancers'
 import { FreelancerDetailsSheet } from './FreelancerDetailsSheet'
+import { useToast } from '@/hooks/use-toast'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export function FreelancersTab() {
   const [freelancers, setFreelancers] = useState<Freelancer[]>([])
@@ -24,6 +37,7 @@ export function FreelancersTab() {
   const [selectedFree, setSelectedFree] = useState<Freelancer | null>(null)
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const { toast } = useToast()
 
   const loadData = async () => {
     setIsLoading(true)
@@ -50,6 +64,16 @@ export function FreelancersTab() {
     const total = present + noShow
     if (total === 0) return '-'
     return `${Math.round((present / total) * 100)}%`
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteFreelancer(id)
+      toast({ title: 'Freelancer excluído.' })
+      loadData()
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' })
+    }
   }
 
   return (
@@ -105,16 +129,46 @@ export function FreelancersTab() {
                     <TableCell>{calcIndex(f.id)}</TableCell>
                     <TableCell>{f.overall_rating ? `${f.overall_rating} / 10` : '-'}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedFree(f)
-                          setIsSheetOpen(true)
-                        }}
-                      >
-                        Gerenciar
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedFree(f)
+                            setIsSheetOpen(true)
+                          }}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir freelancer?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser desfeita. Todos os dados serão perdidos.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(f.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

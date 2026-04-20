@@ -7,6 +7,9 @@ export interface Freelancer {
   guardian_name?: string
   guardian_phone?: string
   overall_rating?: number
+  phone?: string
+  address?: string
+  guardian_authorization?: string
   created: string
 }
 
@@ -30,12 +33,16 @@ export const getFreelancers = async () => {
     .getFullList({ sort: '-created' })) as unknown as Freelancer[]
 }
 
-export const createFreelancer = async (data: Partial<Freelancer>) => {
+export const createFreelancer = async (data: Partial<Freelancer> | FormData) => {
   return (await pb.collection('freelancers').create(data)) as unknown as Freelancer
 }
 
-export const updateFreelancer = async (id: string, data: Partial<Freelancer>) => {
+export const updateFreelancer = async (id: string, data: Partial<Freelancer> | FormData) => {
   return (await pb.collection('freelancers').update(id, data)) as unknown as Freelancer
+}
+
+export const getFreelancerFileUrl = (record: any, filename: string) => {
+  return pb.files.getUrl(record, filename)
 }
 
 export const deleteFreelancer = async (id: string) => {

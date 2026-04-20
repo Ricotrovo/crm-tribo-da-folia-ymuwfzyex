@@ -28,9 +28,18 @@ export const getUsers = async () => {
   return records as unknown as User[]
 }
 
+export const createUser = async (data: any) => {
+  const record = await pb.collection('users').create(data)
+  return record as unknown as User
+}
+
 export const updateUser = async (id: string, data: Partial<User>) => {
   const record = await pb.collection('users').update(id, data)
   return record as unknown as User
+}
+
+export const deleteUser = async (id: string) => {
+  await pb.collection('users').delete(id)
 }
 
 export const getEmployeeDocuments = async (userId: string) => {
