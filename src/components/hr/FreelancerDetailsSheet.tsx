@@ -67,7 +67,9 @@ export function FreelancerDetailsSheet({
       const [r, l] = await Promise.all([getFreelancerRoles(id), getAttendanceLogs(id)])
       setRoles(r)
       setLogs(l)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const handleSaveData = async () => {
