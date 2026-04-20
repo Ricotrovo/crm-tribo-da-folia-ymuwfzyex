@@ -33,7 +33,7 @@ export function AppSidebar() {
     { title: 'Agenda', url: '/agenda', icon: CalendarDays },
     { title: 'Contratos', url: '/contracts', icon: FileText },
     { title: 'Financeiro', url: '/finance', icon: CircleDollarSign },
-    { title: 'Freelancers', url: '/freelancers', icon: UserSquare2 },
+    { title: 'Gestão Humana', url: '/hr', icon: UserSquare2 },
     { title: 'Estoque', url: '/stock', icon: Package },
   ]
 

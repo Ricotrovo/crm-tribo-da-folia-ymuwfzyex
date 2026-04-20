@@ -8,7 +8,7 @@ import Leads from './pages/Leads'
 import Agenda from './pages/Agenda'
 import Contracts from './pages/Contracts'
 import Stock from './pages/Stock'
-import Freelancers from './pages/Freelancers'
+import HR from './pages/HR'
 import Finance from './pages/Finance'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
@@ -53,7 +53,7 @@ const App = () => (
             <Route path="/agenda" element={<Agenda />} />
             <Route path="/contracts" element={<Contracts />} />
             <Route path="/stock" element={<Stock />} />
-            <Route path="/freelancers" element={<Freelancers />} />
+            <Route path="/hr" element={<HR />} />
             <Route path="/finance" element={<Finance />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

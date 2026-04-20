@@ -354,11 +354,18 @@ export function NewLeadDialog({
                       <SelectValue placeholder="Selecione o vendedor..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {users.map((u) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.name || u.email}
-                        </SelectItem>
-                      ))}
+                      {users
+                        .filter(
+                          (u) =>
+                            u.role === 'Vendedor' ||
+                            u.role_title === 'Vendedor' ||
+                            u.id === formData.profile_id,
+                        )
+                        .map((u) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.name || u.email}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
