@@ -55,10 +55,10 @@ export default function Leads() {
   useRealtime('leads', () => loadLeads())
 
   const getTemperatureColor = (temp?: string) => {
-    if (temp === 'Quente') return 'border-l-4 border-l-red-500'
-    if (temp === 'Morno') return 'border-l-4 border-l-orange-500'
-    if (temp === 'Frio') return 'border-l-4 border-l-blue-500'
-    return 'border-l-4 border-l-transparent'
+    if (temp === 'Quente') return 'border-l-8 border-l-red-500'
+    if (temp === 'Morno') return 'border-l-8 border-l-yellow-500'
+    if (temp === 'Frio') return 'border-l-8 border-l-blue-500'
+    return 'border-l-8 border-l-transparent'
   }
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
