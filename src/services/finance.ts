@@ -1,7 +1,6 @@
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 
 export const createPayment = async (data: any) => {
-  const { data: payment, error } = await supabase.from('payment').insert([data]).select().single()
-  if (error) throw error
-  return payment
+  const record = await pb.collection('payments').create(data)
+  return record
 }

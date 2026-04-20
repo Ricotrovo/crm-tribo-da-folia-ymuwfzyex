@@ -1,15 +1,9 @@
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 
 export async function createContract(data: any) {
-  const { data: contract, error: contractError } = await supabase
-    .from('contract')
-    .insert({
-      client_id: data.client_id,
-      total_value: data.total_value,
-    })
-    .select()
-    .single()
-
-  if (contractError) throw contractError
-  return contract
+  const record = await pb.collection('contracts').create({
+    client_id: data.client_id,
+    total_value: data.total_value,
+  })
+  return record
 }

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { Users, AlertCircle, DollarSign, FileText, CalendarCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { FunnelChart } from '@/components/dashboard/funnel-chart'
 import { KpiCards, KpiData } from '@/components/dashboard/kpi-cards'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Index() {
   const [kpis, setKpis] = useState<KpiData[]>([])
@@ -13,110 +14,122 @@ export default function Index() {
   const [recentEvents, setRecentEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true)
-      try {
-        const today = new Date().toISOString().split('T')[0]
-        const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-          .toISOString()
-          .split('T')[0]
+  const fetchDashboardData = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const d = new Date()
+      const endOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0]
 
-        const [
-          eventsRes,
-          contractsRes,
-          paymentsRes,
-          stockRes,
-          freelancersRes,
-          leadsRes,
-          recentEventsRes,
-        ] = await Promise.all([
-          supabase.from('events').select('*').gte('date', today).lte('date', endOfMonth),
-          supabase.from('contracts').select('id', { count: 'exact' }).eq('status', 'Pending'),
-          supabase.from('payments').select('amount').eq('status', 'Pendente'),
-          supabase
-            .from('stock' as any)
-            .select('id', { count: 'exact' })
-            .lte('quantity', 10),
-          supabase
-            .from('freelancers' as any)
-            .select('id', { count: 'exact' })
-            .eq('status', 'Ativo'),
-          supabase.from('leads').select('status'),
-          supabase
-            .from('events')
-            .select('*')
-            .gte('date', today)
-            .order('date', { ascending: true })
-            .limit(5),
+      const [eventsRes, contractsRes, paymentsRes, stockRes, freelancersRes, leadsRes] =
+        await Promise.all([
+          pb
+            .collection('events')
+            .getFullList({
+              filter: `date >= '${today}' && date <= '${endOfMonth}'`,
+              sort: 'date',
+            })
+            .catch(() => []),
+          pb
+            .collection('contracts')
+            .getFullList()
+            .catch(() => []),
+          pb
+            .collection('payments')
+            .getFullList({
+              filter: `status = 'Pendente'`,
+            })
+            .catch(() => []),
+          pb
+            .collection('stock')
+            .getFullList({
+              filter: `quantity <= 10`,
+            })
+            .catch(() => []),
+          pb
+            .collection('freelancers')
+            .getFullList({
+              filter: `status = 'Ativo'`,
+            })
+            .catch(() => []),
+          pb
+            .collection('leads')
+            .getFullList()
+            .catch(() => []),
         ])
 
-        const eventsThisMonth = eventsRes.data?.length || 0
-        const premiumCount = eventsRes.data?.filter((e) => e.salon === 'Premium').length || 0
-        const kidsCount = eventsRes.data?.filter((e) => e.salon === 'Kids&Teens').length || 0
+      const eventsThisMonth = eventsRes.length
+      const premiumCount = eventsRes.filter((e: any) => e.salon === 'Premium').length
+      const kidsCount = eventsRes.filter((e: any) => e.salon === 'Kids&Teens').length
 
-        const pendingReceivables =
-          paymentsRes.data?.reduce((acc, curr) => acc + Number(curr.amount), 0) || 0
+      const pendingReceivables = paymentsRes.reduce(
+        (acc: number, curr: any) => acc + Number(curr.amount || 0),
+        0,
+      )
 
-        setKpis([
-          {
-            title: 'Eventos este mês',
-            value: eventsThisMonth.toString(),
-            icon: CalendarCheck,
-            trend: `${premiumCount} Premium, ${kidsCount} Kids`,
-            color: 'text-primary',
-          },
-          {
-            title: 'Contratos pendentes',
-            value: (contractsRes.count || 0).toString(),
-            icon: FileText,
-            trend: 'Aguardando assinatura',
-            color: 'text-amber-500',
-          },
-          {
-            title: 'Contas a receber',
-            value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-              pendingReceivables,
-            ),
-            icon: DollarSign,
-            trend: 'Pendentes',
-            color: 'text-emerald-500',
-          },
-          {
-            title: 'Estoque baixo',
-            value: `${stockRes.count || 0} itens`,
-            icon: AlertCircle,
-            trend: 'Requer atenção imediata',
-            color: 'text-destructive',
-          },
-          {
-            title: 'Freelancers disponíveis',
-            value: (freelancersRes.count || 0).toString(),
-            icon: Users,
-            trend: 'Equipe ativa',
-            color: 'text-blue-500',
-          },
-        ])
+      setKpis([
+        {
+          title: 'Eventos este mês',
+          value: eventsThisMonth.toString(),
+          icon: CalendarCheck,
+          trend: `${premiumCount} Premium, ${kidsCount} Kids`,
+          color: 'text-primary',
+        },
+        {
+          title: 'Contratos pendentes',
+          value: contractsRes.length.toString(),
+          icon: FileText,
+          trend: 'Aguardando assinatura',
+          color: 'text-amber-500',
+        },
+        {
+          title: 'Contas a receber',
+          value: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+            pendingReceivables,
+          ),
+          icon: DollarSign,
+          trend: 'Pendentes',
+          color: 'text-emerald-500',
+        },
+        {
+          title: 'Estoque baixo',
+          value: `${stockRes.length} itens`,
+          icon: AlertCircle,
+          trend: 'Requer atenção imediata',
+          color: 'text-destructive',
+        },
+        {
+          title: 'Freelancers disponíveis',
+          value: freelancersRes.length.toString(),
+          icon: Users,
+          trend: 'Equipe ativa',
+          color: 'text-blue-500',
+        },
+      ])
 
-        const statuses = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado']
-        const funnel = statuses.map((stage) => ({
-          stage,
-          leads: leadsRes.data?.filter((l) => l.status === stage).length || 0,
-        }))
-        setFunnelData(funnel)
+      const statuses = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado']
+      const funnel = statuses.map((stage) => ({
+        stage,
+        leads: leadsRes.filter((l: any) => l.status === stage).length,
+      }))
+      setFunnelData(funnel)
 
-        if (recentEventsRes.data) {
-          setRecentEvents(recentEventsRes.data)
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error)
-      } finally {
-        setLoading(false)
-      }
+      const upcoming = [...eventsRes].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
+      setRecentEvents(upcoming)
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
+  useEffect(() => {
     fetchDashboardData()
   }, [])
+
+  useRealtime('events', () => fetchDashboardData())
+  useRealtime('leads', () => fetchDashboardData())
+  useRealtime('contracts', () => fetchDashboardData())
+  useRealtime('payments', () => fetchDashboardData())
 
   if (loading) {
     return (
@@ -163,14 +176,18 @@ export default function Index() {
                 >
                   <div>
                     <p className="font-medium text-sm">{event.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{event.client_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {event.client_name || 'Sem cliente'}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-sm">
-                      {format(new Date(event.date), 'dd/MM/yyyy')}
+                      {event.date
+                        ? format(new Date(event.date + 'T00:00:00'), 'dd/MM/yyyy')
+                        : 'Sem data'}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {event.time} • {event.salon}
+                      {event.time || '--:--'} • {event.salon || 'N/A'}
                     </p>
                   </div>
                 </div>

@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { eventService, EventRecord } from '@/services/events'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import {
   Dialog,
   DialogContent,
@@ -47,22 +49,6 @@ export default function Agenda() {
   const [newEventSalon, setNewEventSalon] = useState('Premium')
   const { toast } = useToast()
 
-  useEffect(() => {
-    if (!date) return
-    loadEvents(date)
-
-    const channel = supabase
-      .channel('event_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'event' }, () => {
-        loadEvents(date)
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [date])
-
   const loadEvents = async (d: Date) => {
     setLoading(true)
     try {
@@ -75,22 +61,34 @@ export default function Agenda() {
     }
   }
 
+  useEffect(() => {
+    if (!date) return
+    loadEvents(date)
+  }, [date])
+
+  useRealtime('events', () => {
+    if (date) loadEvents(date)
+  })
+
   const handleCreateEvent = async () => {
     if (!date || !newEventTitle) return
     try {
-      await supabase.from('event').insert([
-        {
-          title: newEventTitle,
-          salon: newEventSalon,
-          date: formatDateForDb(date),
-        },
-      ])
+      await pb.collection('events').create({
+        title: newEventTitle,
+        salon: newEventSalon,
+        date: formatDateForDb(date),
+      })
       setIsEventSheetOpen(false)
       setNewEventTitle('')
       loadEvents(date)
       toast({ title: 'Sucesso', description: 'Evento criado.' })
     } catch (err) {
-      toast({ title: 'Erro ao criar evento', variant: 'destructive' })
+      const fieldErrors = extractFieldErrors(err)
+      if (fieldErrors.title) {
+        toast({ title: 'Erro no título', description: fieldErrors.title, variant: 'destructive' })
+      } else {
+        toast({ title: 'Erro ao criar evento', variant: 'destructive' })
+      }
     }
   }
 
@@ -157,7 +155,7 @@ export default function Agenda() {
                     >
                       <div className="font-semibold text-lg">{event.title}</div>
                       <div className="text-sm text-muted-foreground">
-                        Salão: {event.salon || 'N/A'}
+                        Salão: {event.salon || 'N/A'} {event.time ? `• ${event.time}` : ''}
                       </div>
                     </Card>
                   ))}

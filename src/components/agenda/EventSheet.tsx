@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { useToast } from '@/hooks/use-toast'
 
 const formSchema = z.object({
@@ -59,17 +60,23 @@ export function EventSheet({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const { error } = await supabase.from('events').insert([values])
-      if (error) throw error
+      await pb.collection('events').create(values)
       toast({ title: 'Sucesso', description: 'Evento criado com sucesso.' })
       form.reset()
       onSuccess()
     } catch (error: any) {
-      toast({
-        title: 'Erro',
-        description: error.message || 'Falha ao criar evento.',
-        variant: 'destructive',
-      })
+      const fieldErrors = extractFieldErrors(error)
+      if (Object.keys(fieldErrors).length > 0) {
+        Object.entries(fieldErrors).forEach(([field, msg]) => {
+          form.setError(field as any, { type: 'server', message: msg })
+        })
+      } else {
+        toast({
+          title: 'Erro',
+          description: error.message || 'Falha ao criar evento.',
+          variant: 'destructive',
+        })
+      }
     }
   }
 

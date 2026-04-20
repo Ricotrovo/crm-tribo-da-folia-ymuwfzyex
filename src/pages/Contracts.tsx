@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import {
   Table,
   TableBody,
@@ -30,29 +32,39 @@ export default function Contracts() {
 
   const fetchContracts = async () => {
     setIsLoading(true)
-    const { data, error } = await supabase
-      .from('contract')
-      .select('*, profile(name)')
-      .order('created_at', { ascending: false })
-
-    if (error) console.error(error)
-    setContracts(data || [])
-    setIsLoading(false)
+    try {
+      const records = await pb.collection('contracts').getFullList({
+        sort: '-created',
+        expand: 'client_id',
+      })
+      setContracts(records || [])
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   useEffect(() => {
     fetchContracts()
   }, [])
 
+  useRealtime('contracts', fetchContracts)
+
   const handleCreateContract = async () => {
     try {
-      await supabase.from('contract').insert([{ total_value: Number(newTotalValue) }])
+      await pb.collection('contracts').create({ total_value: Number(newTotalValue) })
       setIsSheetOpen(false)
       setNewTotalValue('')
       fetchContracts()
       toast({ title: 'Sucesso', description: 'Contrato registrado.' })
     } catch (err) {
-      toast({ title: 'Erro ao criar', variant: 'destructive' })
+      const errors = extractFieldErrors(err)
+      if (errors.total_value) {
+        toast({ title: 'Erro', description: errors.total_value, variant: 'destructive' })
+      } else {
+        toast({ title: 'Erro ao criar', variant: 'destructive' })
+      }
     }
   }
 
@@ -105,7 +117,7 @@ export default function Contracts() {
                     <TableCell className="font-medium text-emerald-600">
                       R$ {c.total_value}
                     </TableCell>
-                    <TableCell>{new Date(c.created_at).toLocaleDateString('pt-BR')}</TableCell>
+                    <TableCell>{new Date(c.created).toLocaleDateString('pt-BR')}</TableCell>
                   </TableRow>
                 ))
               )}

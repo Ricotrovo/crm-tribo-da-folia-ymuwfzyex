@@ -15,7 +15,8 @@ import { useToast } from '@/hooks/use-toast'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { getLeads, updateLeadStatus, createLead, Lead } from '@/services/leads'
-import { supabase } from '@/lib/supabase/client'
+import { useRealtime } from '@/hooks/use-realtime'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
 
@@ -27,21 +28,6 @@ export default function Leads() {
   const [newLeadName, setNewLeadName] = useState('')
 
   const { toast } = useToast()
-
-  useEffect(() => {
-    loadLeads()
-
-    const channel = supabase
-      .channel('lead_changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lead' }, () => {
-        loadLeads()
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [])
 
   const loadLeads = async () => {
     try {
@@ -59,6 +45,12 @@ export default function Leads() {
     }
   }
 
+  useEffect(() => {
+    loadLeads()
+  }, [])
+
+  useRealtime('leads', () => loadLeads())
+
   const handleCreateLead = async () => {
     if (!newLeadName.trim()) return
     try {
@@ -68,7 +60,12 @@ export default function Leads() {
       loadLeads()
       toast({ title: 'Sucesso', description: 'Lead criado com sucesso!' })
     } catch (err) {
-      toast({ title: 'Erro', description: 'Falha ao criar lead.', variant: 'destructive' })
+      const fieldErrors = extractFieldErrors(err)
+      if (fieldErrors.name) {
+        toast({ title: 'Erro', description: fieldErrors.name, variant: 'destructive' })
+      } else {
+        toast({ title: 'Erro', description: 'Falha ao criar lead.', variant: 'destructive' })
+      }
     }
   }
 
@@ -165,7 +162,7 @@ export default function Leads() {
                       </CardHeader>
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
                         <div className="text-xs text-muted-foreground">
-                          {new Date(lead.created_at).toLocaleDateString('pt-BR')}
+                          {new Date(lead.created).toLocaleDateString('pt-BR')}
                         </div>
                       </CardContent>
                     </Card>
