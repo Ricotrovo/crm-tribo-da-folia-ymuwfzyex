@@ -4,12 +4,40 @@ export interface Freelancer {
   id: string
   name: string
   status: string
+  birth_date?: string
+  address_zip?: string
+  address_street?: string
+  address_number?: string
+  address_complement?: string
+  address_neighborhood?: string
+  address_city?: string
+  address_state?: string
   guardian_name?: string
   guardian_phone?: string
+  guardian_name_2?: string
+  guardian_phone_2?: string
   overall_rating?: number
   phone?: string
   address?: string
+  categories?: string[]
   guardian_authorization?: string
+  created: string
+}
+
+export interface FreelancerCategory {
+  id: string
+  name: string
+  pay_rate: number
+}
+
+export interface FreelancerEvaluation {
+  id: string
+  freelancer_id: string
+  frequency: number
+  punctuality: number
+  participation: number
+  education: number
+  notes?: string
   created: string
 }
 
@@ -71,6 +99,45 @@ export const createFreelancerRole = async (data: Partial<FreelancerRole>) => {
 
 export const deleteFreelancerRole = async (id: string) => {
   await pb.collection('freelancer_roles').delete(id)
+}
+
+export const getFreelancerCategories = async () => {
+  return (await pb.collection('freelancer_categories').getFullList({
+    sort: 'name',
+  })) as unknown as FreelancerCategory[]
+}
+
+export const createFreelancerCategory = async (data: Partial<FreelancerCategory>) => {
+  return (await pb
+    .collection('freelancer_categories')
+    .create(data)) as unknown as FreelancerCategory
+}
+
+export const updateFreelancerCategory = async (id: string, data: Partial<FreelancerCategory>) => {
+  return (await pb
+    .collection('freelancer_categories')
+    .update(id, data)) as unknown as FreelancerCategory
+}
+
+export const deleteFreelancerCategory = async (id: string) => {
+  await pb.collection('freelancer_categories').delete(id)
+}
+
+export const getFreelancerEvaluations = async (freelancerId: string) => {
+  return (await pb.collection('freelancer_evaluations').getFullList({
+    filter: `freelancer_id = '${freelancerId}'`,
+    sort: '-created',
+  })) as unknown as FreelancerEvaluation[]
+}
+
+export const createFreelancerEvaluation = async (data: Partial<FreelancerEvaluation>) => {
+  return (await pb
+    .collection('freelancer_evaluations')
+    .create(data)) as unknown as FreelancerEvaluation
+}
+
+export const deleteFreelancerEvaluation = async (id: string) => {
+  await pb.collection('freelancer_evaluations').delete(id)
 }
 
 export const getAttendanceLogs = async (freelancerId?: string) => {
