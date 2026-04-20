@@ -38,7 +38,15 @@ import { Calendar } from '@/components/ui/calendar'
 import { format, isValid } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
+const STAGES = [
+  'Novo',
+  'Contato Inicial',
+  'Proposta',
+  'Visita',
+  'Revisar',
+  'Clientes Adormecidos',
+  'Fechado',
+] as const
 
 const parseEventDate = (dateStr?: string) => {
   if (!dateStr) return null
@@ -320,7 +328,7 @@ export default function Leads() {
 
       <div
         className={cn(
-          'flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 overflow-x-auto pb-4 items-start transition-opacity duration-200',
+          'flex-1 flex gap-4 overflow-x-auto pb-4 items-start transition-opacity duration-200',
           isSearching ? 'opacity-60 pointer-events-none' : 'opacity-100',
         )}
       >
@@ -330,7 +338,7 @@ export default function Leads() {
             <div
               key={stage}
               className={cn(
-                'flex flex-col bg-muted/40 rounded-xl p-3 min-w-[260px] border transition-colors h-full max-h-[calc(100vh-12rem)]',
+                'flex flex-col bg-muted/40 rounded-xl p-3 w-[280px] shrink-0 border transition-colors h-full max-h-[calc(100vh-12rem)]',
                 draggingId ? 'border-primary/20 bg-muted/60' : 'border-transparent',
               )}
               onDragOver={handleDragOver}
@@ -441,7 +449,10 @@ export default function Leads() {
                               )
                               const diffTime = nowOnly.getTime() - refDateOnly.getTime()
                               const days = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
-                              const isInactive = days > 9
+                              const isInactive =
+                                days > 9 &&
+                                lead.status !== 'Fechado' &&
+                                lead.status !== 'Clientes Adormecidos'
                               return (
                                 <span
                                   className={cn(

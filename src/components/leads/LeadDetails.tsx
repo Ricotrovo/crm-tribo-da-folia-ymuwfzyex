@@ -190,7 +190,11 @@ export function LeadDetails({
                   const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
                   const diffTime = nowOnly.getTime() - refDateOnly.getTime()
                   const days = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
-                  if (days > 9) {
+                  if (
+                    days > 9 &&
+                    lead.status !== 'Fechado' &&
+                    lead.status !== 'Clientes Adormecidos'
+                  ) {
                     return (
                       <Badge variant="destructive" className="animate-pulse h-5 text-[10px]">
                         {days} dias inativo
