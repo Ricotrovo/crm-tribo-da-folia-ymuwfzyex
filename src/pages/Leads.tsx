@@ -3,12 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Plus,
-  Phone as PhoneIcon,
-  Calendar as CalendarIcon,
-  Users as UsersIcon,
-} from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Users as UsersIcon, MessageCircle } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -162,16 +157,16 @@ export default function Leads() {
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
                         {lead.phone && (
                           <div
-                            className="flex items-center text-xs text-muted-foreground gap-1.5"
+                            className="flex items-center text-xs gap-1.5"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <PhoneIcon className="w-3 h-3" />
                             <a
                               href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="hover:underline text-blue-600 dark:text-blue-400"
+                              className="flex items-center gap-1.5 hover:underline text-[#25D366] font-medium transition-colors hover:text-[#128C7E]"
                             >
+                              <MessageCircle className="w-3.5 h-3.5" />
                               {lead.phone}
                             </a>
                           </div>

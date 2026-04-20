@@ -10,6 +10,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Lead } from '@/services/leads'
 import { maskPhone } from '@/lib/formatters'
+import { MessageCircle } from 'lucide-react'
 
 interface Props {
   lead: Partial<Lead>
@@ -39,12 +40,25 @@ export function LeadTabContato({ lead, onChange, fieldErrors = {} }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="grid gap-2">
           <Label>Telefone</Label>
-          <Input
-            value={lead.phone || ''}
-            onChange={(e) => handleChange('phone', maskPhone(e.target.value))}
-            placeholder="(00) 00000-0000"
-            className={fieldErrors.phone ? 'border-red-500' : ''}
-          />
+          <div className="flex gap-2">
+            <Input
+              value={lead.phone || ''}
+              onChange={(e) => handleChange('phone', maskPhone(e.target.value))}
+              placeholder="(00) 00000-0000"
+              className={fieldErrors.phone ? 'border-red-500' : ''}
+            />
+            {lead.phone && (
+              <a
+                href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#25D366] text-white hover:bg-[#128C7E] h-9 px-3 shrink-0 shadow-sm"
+                title="Contato via WhatsApp"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </a>
+            )}
+          </div>
           {fieldErrors.phone && <p className="text-xs text-red-500">{fieldErrors.phone}</p>}
         </div>
         <div className="grid gap-2">

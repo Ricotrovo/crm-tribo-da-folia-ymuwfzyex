@@ -17,7 +17,7 @@ import { LeadTabContratos } from './LeadTabContratos'
 import { LeadTabDocumentacao } from './LeadTabDocumentacao'
 import { LeadInteractions } from './LeadInteractions'
 import { validateCPF, maskCPF, maskPhone, maskRG, maskCEP } from '@/lib/formatters'
-import { Trash2 } from 'lucide-react'
+import { Trash2, MessageCircle } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,7 +146,20 @@ export function LeadDetails({
           <div className="flex justify-between items-start pr-8">
             <div className="flex flex-col gap-1 text-left">
               <SheetTitle className="text-xl font-bold">{lead.name}</SheetTitle>
-              <SheetDescription>Detalhes e histórico do lead.</SheetDescription>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                <SheetDescription>Detalhes e histórico do lead.</SheetDescription>
+                {lead.phone && (
+                  <a
+                    href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#25D366] text-white hover:bg-[#128C7E] h-6 px-2 py-1 gap-1.5 shadow-sm"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
