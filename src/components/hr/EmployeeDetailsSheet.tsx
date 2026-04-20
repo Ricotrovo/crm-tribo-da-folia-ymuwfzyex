@@ -31,6 +31,7 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { Trash2, Eye } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
+import { maskCPF, maskPhone, maskRG, maskCEP, validateCPF } from '@/lib/formatters'
 
 export function EmployeeDetailsSheet({
   user,
@@ -55,11 +56,18 @@ export function EmployeeDetailsSheet({
   const [docDesc, setDocDesc] = useState('')
   const [uploading, setUploading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [cpfError, setCpfError] = useState(false)
 
   useEffect(() => {
     if (open) {
       if (user) {
-        setFormData(user)
+        setFormData({
+          ...user,
+          cpf: user.cpf ? maskCPF(user.cpf) : '',
+          phone: user.phone ? maskPhone(user.phone) : '',
+          rg: user.rg ? maskRG(user.rg) : '',
+          address_zip: user.address_zip ? maskCEP(user.address_zip) : '',
+        })
         loadDocs(user.id)
       } else {
         setFormData({})
@@ -68,6 +76,7 @@ export function EmployeeDetailsSheet({
       }
       setAvatarFile(null)
       setFieldErrors({})
+      setCpfError(false)
     }
   }, [user, open])
 
@@ -82,6 +91,15 @@ export function EmployeeDetailsSheet({
 
   const handleSave = async () => {
     setFieldErrors({})
+
+    if (cpfError || (formData.cpf && formData.cpf.length === 14 && !validateCPF(formData.cpf))) {
+      toast({
+        title: 'Atenção',
+        description: 'Corrija o CPF antes de salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
 
     if (!user) {
       const errors: Record<string, string> = {}
@@ -117,7 +135,13 @@ export function EmployeeDetailsSheet({
         )
           return
         if (value !== undefined && value !== null) {
-          fd.append(key, String(value))
+          if (key === 'cpf' || key === 'phone' || key === 'address_zip') {
+            fd.append(key, String(value).replace(/\D/g, ''))
+          } else if (key === 'rg') {
+            fd.append(key, String(value).replace(/[.-]/g, ''))
+          } else {
+            fd.append(key, String(value))
+          }
         }
       })
 
@@ -143,6 +167,9 @@ export function EmployeeDetailsSheet({
       }
     } catch (e: any) {
       const errors = extractFieldErrors(e)
+      if (errors.cpf && errors.cpf.toLowerCase().includes('unique')) {
+        errors.cpf = 'Este CPF já está cadastrado para outro funcionário'
+      }
       setFieldErrors(errors)
       toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
     } finally {
@@ -289,17 +316,28 @@ export function EmployeeDetailsSheet({
                   <Label>CPF</Label>
                   <Input
                     value={formData.cpf || ''}
-                    onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                    onChange={(e) => {
+                      const val = maskCPF(e.target.value)
+                      setFormData({ ...formData, cpf: val })
+                      setCpfError(val.length === 14 && !validateCPF(val))
+                    }}
                     placeholder="000.000.000-00"
-                    className={fieldErrors.cpf ? 'border-destructive' : ''}
+                    className={
+                      cpfError || fieldErrors.cpf
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : ''
+                    }
                   />
-                  {fieldErrors.cpf && <p className="text-xs text-destructive">{fieldErrors.cpf}</p>}
+                  {cpfError && <p className="text-xs text-destructive">CPF inválido</p>}
+                  {!cpfError && fieldErrors.cpf && (
+                    <p className="text-xs text-destructive">{fieldErrors.cpf}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>RG</Label>
                   <Input
                     value={formData.rg || ''}
-                    onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, rg: maskRG(e.target.value) })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -420,7 +458,8 @@ export function EmployeeDetailsSheet({
                   <Label>Telefone / WhatsApp</Label>
                   <Input
                     value={formData.phone || ''}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
+                    placeholder="(00) 00000-0000"
                   />
                 </div>
                 <div className="space-y-2">
@@ -458,7 +497,10 @@ export function EmployeeDetailsSheet({
                     <Label>CEP</Label>
                     <Input
                       value={formData.address_zip || ''}
-                      onChange={(e) => setFormData({ ...formData, address_zip: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, address_zip: maskCEP(e.target.value) })
+                      }
+                      placeholder="00000-000"
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-4">
