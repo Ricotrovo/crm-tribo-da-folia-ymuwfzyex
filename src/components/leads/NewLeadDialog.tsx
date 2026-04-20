@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createLead } from '@/services/leads'
+import {
+  createLead,
+  updateLead,
+  Lead,
+  Child,
+  getChildren,
+  createChild,
+  deleteChild,
+} from '@/services/leads'
 import { useToast } from '@/hooks/use-toast'
 import {
   Select,
@@ -18,35 +26,131 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Separator } from '@/components/ui/separator'
+import { maskPhone, maskCPF, maskRG, maskCEP, validateCPF, calculateAge } from '@/lib/formatters'
+import { Plus, Trash2 } from 'lucide-react'
+import { LeadInteractions } from './LeadInteractions'
 
 export function NewLeadDialog({
   open,
   onOpenChange,
   onSuccess,
+  lead,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  lead?: Lead
 }) {
   const [loading, setLoading] = useState(false)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [origin, setOrigin] = useState('WhatsApp')
+  const [formData, setFormData] = useState<Partial<Lead>>({ origin: 'WhatsApp', status: 'Novo' })
+  const [children, setChildren] = useState<Partial<Child>[]>([])
+  const [deletedChildrenIds, setDeletedChildrenIds] = useState<string[]>([])
+  const [cpfError, setCpfError] = useState(false)
   const { toast } = useToast()
+
+  useEffect(() => {
+    if (open) {
+      if (lead) {
+        setFormData(lead)
+        loadChildren(lead.id)
+      } else {
+        setFormData({ origin: 'WhatsApp', status: 'Novo' })
+        setChildren([])
+      }
+      setDeletedChildrenIds([])
+      setCpfError(false)
+    }
+  }, [open, lead])
+
+  const loadChildren = async (leadId: string) => {
+    try {
+      const data = await getChildren(leadId)
+      setChildren(data)
+    } catch (error) {}
+  }
+
+  const handleCepChange = async (val: string) => {
+    const masked = maskCEP(val)
+    setFormData((prev) => ({ ...prev, address_zip: masked }))
+
+    const cleanCep = masked.replace(/\D/g, '')
+    if (cleanCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        const data = await res.json()
+        if (!data.erro) {
+          setFormData((prev) => ({
+            ...prev,
+            address_street: data.logradouro,
+            address_neighborhood: data.bairro,
+            address_city: data.localidade,
+            address_state: data.uf,
+          }))
+          toast({ title: 'Endereço preenchido via CEP' })
+        }
+      } catch (e) {}
+    }
+  }
+
+  const addChild = () => {
+    setChildren([...children, { name: '', birthday: '' }])
+  }
+
+  const updateChild = (index: number, field: keyof Child, value: string) => {
+    const newChildren = [...children]
+    newChildren[index] = { ...newChildren[index], [field]: value }
+    setChildren(newChildren)
+  }
+
+  const removeChild = (index: number) => {
+    const child = children[index]
+    if (child.id) {
+      setDeletedChildrenIds([...deletedChildrenIds, child.id])
+    }
+    setChildren(children.filter((_, i) => i !== index))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (cpfError) {
+      toast({
+        title: 'Atenção',
+        description: 'Corrija o CPF antes de salvar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      await createLead({ name, phone, origin, status: 'Novo' })
-      toast({ title: 'Lead criado com sucesso' })
+      let savedLead: Lead
+      if (lead?.id) {
+        savedLead = await updateLead(lead.id, formData)
+        toast({ title: 'Lead atualizado com sucesso' })
+      } else {
+        savedLead = await createLead({ ...formData, profile_id: null })
+        toast({ title: 'Lead criado com sucesso' })
+      }
+
+      // Process children
+      for (const child of children) {
+        if (child.id) {
+          // Future: update child if needed
+        } else if (child.name) {
+          await createChild({ ...child, lead_id: savedLead.id })
+        }
+      }
+
+      for (const id of deletedChildrenIds) {
+        await deleteChild(id)
+      }
+
       onSuccess()
       onOpenChange(false)
-      setName('')
-      setPhone('')
-      setOrigin('WhatsApp')
     } catch (error: any) {
-      toast({ title: 'Erro ao criar lead', description: error.message, variant: 'destructive' })
+      toast({ title: 'Erro ao salvar lead', description: error.message, variant: 'destructive' })
     } finally {
       setLoading(false)
     }
@@ -54,51 +158,309 @@ export function NewLeadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Lead</DialogTitle>
+          <DialogTitle>{lead ? 'Ficha do Lead' : 'Novo Lead'}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              placeholder="Ex: Maria Silva"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Telefone</Label>
-            <Input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(11) 99999-9999"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="origin">Origem</Label>
-            <Select value={origin} onValueChange={setOrigin}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="WhatsApp">WhatsApp</SelectItem>
-                <SelectItem value="Instagram">Instagram</SelectItem>
-                <SelectItem value="Facebook">Facebook</SelectItem>
-                <SelectItem value="Site">Site</SelectItem>
-                <SelectItem value="Indicação">Indicação</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
+
+        <form id="lead-form" onSubmit={handleSubmit}>
+          <Tabs defaultValue="basico" className="w-full mt-2">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="basico">Dados Básicos</TabsTrigger>
+              <TabsTrigger value="familia">Família</TabsTrigger>
+              <TabsTrigger value="documentacao">Documentação</TabsTrigger>
+              <TabsTrigger value="historico" disabled={!lead?.id}>
+                Histórico
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basico" className="space-y-4 py-4 animate-fade-in">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">
+                    Nome Completo <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    value={formData.name || ''}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    placeholder="Ex: Maria Silva"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">WhatsApp / Telefone</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: maskPhone(e.target.value) })}
+                    placeholder="(11) 99999-9999"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mail</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="instagram">Instagram</Label>
+                  <Input
+                    id="instagram"
+                    value={formData.instagram || ''}
+                    onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                    placeholder="@usuario"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="origin">Origem</Label>
+                  <Select
+                    value={formData.origin || 'WhatsApp'}
+                    onValueChange={(v) => setFormData({ ...formData, origin: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="WhatsApp">WhatsApp</SelectItem>
+                      <SelectItem value="Instagram">Instagram</SelectItem>
+                      <SelectItem value="Facebook">Facebook</SelectItem>
+                      <SelectItem value="Site">Site</SelectItem>
+                      <SelectItem value="Indicação">Indicação</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status do Lead</Label>
+                  <Select
+                    value={formData.status || 'Novo'}
+                    onValueChange={(v) => setFormData({ ...formData, status: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Novo">Novo</SelectItem>
+                      <SelectItem value="Em Negociação">Em Negociação</SelectItem>
+                      <SelectItem value="Fechado">Fechado</SelectItem>
+                      <SelectItem value="Perdido">Perdido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="familia" className="space-y-4 py-4 animate-fade-in">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="spouse_name">Cônjuge / Parceiro(a)</Label>
+                  <Input
+                    id="spouse_name"
+                    value={formData.spouse_name || ''}
+                    onChange={(e) => setFormData({ ...formData, spouse_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="birthday">Data de Nascimento (Responsável)</Label>
+                  <Input
+                    id="birthday"
+                    type="date"
+                    value={formData.birthday || ''}
+                    onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Separator />
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-sm">Filhos / Aniversariantes</h3>
+                <Button type="button" variant="outline" size="sm" onClick={addChild}>
+                  <Plus className="w-4 h-4 mr-2" /> Adicionar
+                </Button>
+              </div>
+              {children.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+                  Nenhum filho adicionado a este lead.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {children.map((child, index) => (
+                    <div
+                      key={index}
+                      className="flex gap-4 items-end bg-muted/40 p-3 rounded-md border border-border/50"
+                    >
+                      <div className="space-y-2 flex-1">
+                        <Label>Nome do Filho(a)</Label>
+                        <Input
+                          value={child.name || ''}
+                          onChange={(e) => updateChild(index, 'name', e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2 flex-1">
+                        <Label>Nascimento</Label>
+                        <Input
+                          type="date"
+                          value={child.birthday || ''}
+                          onChange={(e) => updateChild(index, 'birthday', e.target.value)}
+                        />
+                      </div>
+                      <div className="mb-2 w-16 text-center hidden sm:block">
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {child.birthday ? `${calculateAge(child.birthday)} anos` : '-'}
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50 mb-0.5"
+                        onClick={() => removeChild(index)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="documentacao" className="space-y-4 py-4 animate-fade-in">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="cpf">CPF</Label>
+                  <Input
+                    id="cpf"
+                    value={formData.cpf || ''}
+                    onChange={(e) => {
+                      const val = maskCPF(e.target.value)
+                      setFormData({ ...formData, cpf: val })
+                      setCpfError(val.length === 14 && !validateCPF(val))
+                    }}
+                    placeholder="000.000.000-00"
+                    className={cpfError ? 'border-red-500 focus-visible:ring-red-500' : ''}
+                  />
+                  {cpfError && <p className="text-xs text-red-500 mt-1">CPF Inválido</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rg">RG</Label>
+                  <Input
+                    id="rg"
+                    value={formData.rg || ''}
+                    onChange={(e) => setFormData({ ...formData, rg: maskRG(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="marital_status">Estado Civil</Label>
+                  <Select
+                    value={formData.marital_status || ''}
+                    onValueChange={(v) => setFormData({ ...formData, marital_status: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Solteiro(a)">Solteiro(a)</SelectItem>
+                      <SelectItem value="Casado(a)">Casado(a)</SelectItem>
+                      <SelectItem value="Divorciado(a)">Divorciado(a)</SelectItem>
+                      <SelectItem value="Viúvo(a)">Viúvo(a)</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Separator />
+              <h3 className="font-semibold text-sm">Endereço Residencial</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address_zip">CEP</Label>
+                  <Input
+                    id="address_zip"
+                    value={formData.address_zip || ''}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="address_street">Logradouro</Label>
+                  <Input
+                    id="address_street"
+                    value={formData.address_street || ''}
+                    onChange={(e) => setFormData({ ...formData, address_street: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_number">Número</Label>
+                  <Input
+                    id="address_number"
+                    value={formData.address_number || ''}
+                    onChange={(e) => setFormData({ ...formData, address_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_complement">Complemento</Label>
+                  <Input
+                    id="address_complement"
+                    value={formData.address_complement || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address_complement: e.target.value })
+                    }
+                    placeholder="Apto, Bloco..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_neighborhood">Bairro</Label>
+                  <Input
+                    id="address_neighborhood"
+                    value={formData.address_neighborhood || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, address_neighborhood: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_city">Cidade</Label>
+                  <Input
+                    id="address_city"
+                    value={formData.address_city || ''}
+                    onChange={(e) => setFormData({ ...formData, address_city: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_state">UF</Label>
+                  <Input
+                    id="address_state"
+                    value={formData.address_state || ''}
+                    onChange={(e) => setFormData({ ...formData, address_state: e.target.value })}
+                    maxLength={2}
+                    placeholder="SP"
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="historico" className="py-4 animate-fade-in">
+              {lead?.id ? (
+                <LeadInteractions leadId={lead.id} />
+              ) : (
+                <div className="text-center py-10 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Salve o lead primeiro para habilitar o Histórico de Interações e CRM.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : 'Salvar'}
+            <Button type="submit" form="lead-form" disabled={loading || cpfError}>
+              {loading ? 'Salvando...' : 'Salvar Ficha'}
             </Button>
           </DialogFooter>
         </form>
