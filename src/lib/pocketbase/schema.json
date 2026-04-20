@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T20:40:29.423Z",
+  "generatedAt": "2026-04-20T20:54:43.090Z",
   "collections": [
     {
       "name": "users",
@@ -167,6 +167,18 @@
         },
         {
           "name": "emergency_contact",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "emergency_contact_name",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "emergency_contact_phone",
           "type": "text",
           "required": false,
           "system": false

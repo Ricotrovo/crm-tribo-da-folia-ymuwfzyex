@@ -6,7 +6,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   User,
   updateUser,
@@ -29,7 +29,7 @@ import {
 } from '@/services/users'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
-import { Trash2, Eye } from 'lucide-react'
+import { Trash2, Eye, Search } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { maskCPF, maskPhone, maskRG, maskCEP, validateCPF } from '@/lib/formatters'
 
@@ -57,6 +57,7 @@ export function EmployeeDetailsSheet({
   const [uploading, setUploading] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [cpfError, setCpfError] = useState(false)
+  const [searchingCep, setSearchingCep] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -65,6 +66,9 @@ export function EmployeeDetailsSheet({
           ...user,
           cpf: user.cpf ? maskCPF(user.cpf) : '',
           phone: user.phone ? maskPhone(user.phone) : '',
+          emergency_contact_phone: user.emergency_contact_phone
+            ? maskPhone(user.emergency_contact_phone)
+            : '',
           rg: user.rg ? maskRG(user.rg) : '',
           address_zip: user.address_zip ? maskCEP(user.address_zip) : '',
         })
@@ -86,6 +90,36 @@ export function EmployeeDetailsSheet({
       setDocs(data)
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  const handleCepChange = async (val: string) => {
+    const masked = maskCEP(val)
+    setFormData((prev) => ({ ...prev, address_zip: masked }))
+
+    const cleanCep = masked.replace(/\D/g, '')
+    if (cleanCep.length === 8) {
+      setSearchingCep(true)
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`)
+        const data = await res.json()
+        if (!data.erro) {
+          setFormData((prev) => ({
+            ...prev,
+            address_street: data.logradouro || prev.address_street || '',
+            address_neighborhood: data.bairro || prev.address_neighborhood || '',
+            address_city: data.localidade || prev.address_city || '',
+            address_state: data.uf || prev.address_state || '',
+          }))
+          toast({ title: 'Endereço encontrado.' })
+        } else {
+          toast({ title: 'CEP não encontrado.', variant: 'destructive' })
+        }
+      } catch (err) {
+        toast({ title: 'Erro ao buscar CEP.', variant: 'destructive' })
+      } finally {
+        setSearchingCep(false)
+      }
     }
   }
 
@@ -135,7 +169,12 @@ export function EmployeeDetailsSheet({
         )
           return
         if (value !== undefined && value !== null) {
-          if (key === 'cpf' || key === 'phone' || key === 'address_zip') {
+          if (
+            key === 'cpf' ||
+            key === 'phone' ||
+            key === 'emergency_contact_phone' ||
+            key === 'address_zip'
+          ) {
             fd.append(key, String(value).replace(/\D/g, ''))
           } else if (key === 'rg') {
             fd.append(key, String(value).replace(/[.-]/g, ''))
@@ -168,7 +207,10 @@ export function EmployeeDetailsSheet({
     } catch (e: any) {
       const errors = extractFieldErrors(e)
       if (errors.cpf && errors.cpf.toLowerCase().includes('unique')) {
-        errors.cpf = 'Este CPF já está cadastrado para outro funcionário'
+        errors.cpf = 'Este CPF já está cadastrado para outro funcionário.'
+      }
+      if (errors.email && errors.email.toLowerCase().includes('unique')) {
+        errors.email = 'Este e-mail já está cadastrado para outro funcionário.'
       }
       setFieldErrors(errors)
       toast({ title: 'Erro ao salvar', description: getErrorMessage(e), variant: 'destructive' })
@@ -219,7 +261,7 @@ export function EmployeeDetailsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-2xl flex flex-col h-full p-0">
-        <div className="p-6 pb-2 border-b">
+        <div className="p-6 pb-4 border-b">
           <SheetHeader>
             <SheetTitle>{user ? `${user.name} - Detalhes` : 'Novo Funcionário'}</SheetTitle>
             <SheetDescription>
@@ -230,27 +272,12 @@ export function EmployeeDetailsSheet({
           </SheetHeader>
         </div>
 
-        <Tabs defaultValue="perfil" className="flex-1 flex flex-col overflow-hidden">
-          <div className="px-6 pt-2">
-            <TabsList className="w-full flex h-10">
-              <TabsTrigger value="perfil" className="flex-1">
-                Perfil
-              </TabsTrigger>
-              <TabsTrigger value="profissional" className="flex-1">
-                Profissional
-              </TabsTrigger>
-              <TabsTrigger value="contato" className="flex-1">
-                Contato
-              </TabsTrigger>
-              <TabsTrigger value="documentos" disabled={!user} className="flex-1">
-                Docs
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          <ScrollArea className="flex-1 p-6 pt-4">
-            <TabsContent value="perfil" className="space-y-4 m-0">
-              <div className="flex items-center gap-4 mb-6">
+        <ScrollArea className="flex-1 px-6">
+          <div className="space-y-8 py-6">
+            <section className="space-y-4">
+              <h3 className="text-lg font-medium">Perfil</h3>
+              <Separator />
+              <div className="flex items-center gap-4 mb-4">
                 <Avatar className="w-16 h-16 border">
                   <AvatarImage src={avatarUrl} />
                   <AvatarFallback>{formData.name?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
@@ -382,9 +409,11 @@ export function EmployeeDetailsSheet({
                   </Select>
                 </div>
               </div>
-            </TabsContent>
+            </section>
 
-            <TabsContent value="profissional" className="space-y-4 m-0">
+            <section className="space-y-4">
+              <h3 className="text-lg font-medium">Profissional</h3>
+              <Separator />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Data de Admissão</Label>
@@ -450,9 +479,11 @@ export function EmployeeDetailsSheet({
                   />
                 </div>
               </div>
-            </TabsContent>
+            </section>
 
-            <TabsContent value="contato" className="space-y-6 m-0">
+            <section className="space-y-4">
+              <h3 className="text-lg font-medium">Contato</h3>
+              <Separator />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Telefone / WhatsApp</Label>
@@ -463,13 +494,26 @@ export function EmployeeDetailsSheet({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Contato de Emergência</Label>
+                  <Label>Nome do Contato de Emergência</Label>
                   <Input
-                    value={formData.emergency_contact || ''}
+                    value={formData.emergency_contact_name || ''}
                     onChange={(e) =>
-                      setFormData({ ...formData, emergency_contact: e.target.value })
+                      setFormData({ ...formData, emergency_contact_name: e.target.value })
                     }
-                    placeholder="Nome e Telefone"
+                    placeholder="Nome completo"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Telefone de Emergência</Label>
+                  <Input
+                    value={formData.emergency_contact_phone || ''}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        emergency_contact_phone: maskPhone(e.target.value),
+                      })
+                    }
+                    placeholder="(00) 00000-0000"
                   />
                 </div>
                 <div className="space-y-2">
@@ -491,17 +535,23 @@ export function EmployeeDetailsSheet({
               </div>
 
               <div>
-                <h4 className="text-sm font-semibold mb-3 border-b pb-2">Endereço</h4>
+                <h4 className="text-sm font-semibold mb-3 border-b pb-2 mt-4">Endereço</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
                   <div className="space-y-2 sm:col-span-2">
                     <Label>CEP</Label>
-                    <Input
-                      value={formData.address_zip || ''}
-                      onChange={(e) =>
-                        setFormData({ ...formData, address_zip: maskCEP(e.target.value) })
-                      }
-                      placeholder="00000-000"
-                    />
+                    <div className="relative">
+                      <Input
+                        value={formData.address_zip || ''}
+                        onChange={(e) => handleCepChange(e.target.value)}
+                        placeholder="00000-000"
+                        className="pr-8"
+                      />
+                      {searchingCep && (
+                        <div className="absolute right-2 top-2.5">
+                          <Search className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-2 sm:col-span-4">
                     <Label>Rua / Logradouro</Label>
@@ -544,106 +594,125 @@ export function EmployeeDetailsSheet({
                   </div>
                 </div>
               </div>
-            </TabsContent>
+            </section>
 
-            <TabsContent value="documentos" className="space-y-4 m-0">
-              <form onSubmit={handleUpload} className="space-y-3 bg-muted/40 p-4 rounded-lg border">
-                <h4 className="text-sm font-semibold">Novo Documento</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tipo</Label>
-                    <Select value={docType} onValueChange={setDocType}>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Identificação">Identificação</SelectItem>
-                        <SelectItem value="Contrato">Contrato</SelectItem>
-                        <SelectItem value="Atestado">Atestado Médico</SelectItem>
-                        <SelectItem value="Outro">Outro</SelectItem>
-                      </SelectContent>
-                    </Select>
+            {user && (
+              <section className="space-y-4">
+                <h3 className="text-lg font-medium">Documentos</h3>
+                <Separator />
+                <form
+                  onSubmit={handleUpload}
+                  className="space-y-3 bg-muted/40 p-4 rounded-lg border"
+                >
+                  <h4 className="text-sm font-semibold">Novo Documento</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Tipo</Label>
+                      <Select value={docType} onValueChange={setDocType}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Identificação">Identificação</SelectItem>
+                          <SelectItem value="Contrato">Contrato</SelectItem>
+                          <SelectItem value="Atestado">Atestado Médico</SelectItem>
+                          <SelectItem value="Outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Descrição</Label>
+                      <Input
+                        className="h-8 text-xs"
+                        value={docDesc}
+                        onChange={(e) => setDocDesc(e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Descrição</Label>
+                    <Label className="text-xs">Arquivo (PDF, JPEG, PNG)</Label>
                     <Input
+                      type="file"
                       className="h-8 text-xs"
-                      value={docDesc}
-                      onChange={(e) => setDocDesc(e.target.value)}
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
+                      required
+                      accept=".pdf,image/jpeg,image/png"
                     />
                   </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Arquivo (PDF, JPEG, PNG)</Label>
-                  <Input
-                    type="file"
-                    className="h-8 text-xs"
-                    onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    required
-                    accept=".pdf,image/jpeg,image/png"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={uploading || !file}
-                  className="w-full h-8"
-                >
-                  {uploading ? 'Enviando...' : 'Fazer Upload'}
-                </Button>
-              </form>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={uploading || !file}
+                    className="w-full h-8"
+                  >
+                    {uploading ? 'Enviando...' : 'Fazer Upload'}
+                  </Button>
+                </form>
 
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold">Repositório</h4>
-                {docs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum documento anexado.</p>
-                ) : (
-                  docs.map((d) => (
-                    <div
-                      key={d.id}
-                      className="flex items-center justify-between p-3 border rounded-md bg-card"
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium">{d.doc_type}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {d.description || d.file}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground mt-1">
-                          {new Date(d.created).toLocaleDateString('pt-BR')}
-                        </span>
-                      </div>
-                      <div className="flex gap-2">
-                        <a href={pb.files.getUrl(d, d.file)} target="_blank" rel="noreferrer">
-                          <Button variant="outline" size="icon" className="h-8 w-8">
-                            <Eye className="w-4 h-4" />
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">Repositório</h4>
+                  {docs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum documento anexado.</p>
+                  ) : (
+                    docs.map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex items-center justify-between p-3 border rounded-md bg-card"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{d.doc_type}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {d.description || d.file}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground mt-1">
+                            {new Date(d.created).toLocaleDateString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <a href={pb.files.getUrl(d, d.file)} target="_blank" rel="noreferrer">
+                            <Button variant="outline" size="icon" className="h-8 w-8">
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </a>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => handleDelDoc(d.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        </a>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => handleDelDoc(d.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </TabsContent>
-          </ScrollArea>
+                    ))
+                  )}
+                </div>
+              </section>
+            )}
 
-          <div className="p-6 pt-4 border-t bg-background mt-auto">
-            <Button
-              onClick={handleSave}
-              disabled={saving || !formData.email || (!user && !password)}
-              className="w-full"
-            >
-              {saving ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
+            {!user && (
+              <section className="space-y-4">
+                <h3 className="text-lg font-medium">Documentos</h3>
+                <Separator />
+                <div className="bg-muted/40 p-4 rounded-lg border">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Salve o funcionário primeiro para poder anexar documentos.
+                  </p>
+                </div>
+              </section>
+            )}
           </div>
-        </Tabs>
+        </ScrollArea>
+
+        <div className="p-6 pt-4 border-t bg-background mt-auto">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !formData.email || (!user && !password)}
+            className="w-full"
+          >
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   )
