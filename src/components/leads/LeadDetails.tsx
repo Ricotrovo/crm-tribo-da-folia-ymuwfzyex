@@ -176,7 +176,30 @@ export function LeadDetails({
         <SheetHeader className="mb-4">
           <div className="flex justify-between items-start pr-8">
             <div className="flex flex-col gap-1 text-left">
-              <SheetTitle className="text-xl font-bold">{lead.name}</SheetTitle>
+              <div className="flex items-center gap-2">
+                <SheetTitle className="text-xl font-bold">{lead.name}</SheetTitle>
+                {(() => {
+                  const referenceDateStr = lead.last_contact_date || lead.created
+                  const refDate = referenceDateStr ? new Date(referenceDateStr) : new Date()
+                  const refDateOnly = new Date(
+                    refDate.getFullYear(),
+                    refDate.getMonth(),
+                    refDate.getDate(),
+                  )
+                  const now = new Date()
+                  const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+                  const diffTime = nowOnly.getTime() - refDateOnly.getTime()
+                  const days = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
+                  if (days > 9) {
+                    return (
+                      <Badge variant="destructive" className="animate-pulse h-5 text-[10px]">
+                        {days} dias inativo
+                      </Badge>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
               <div className="flex items-center gap-2 flex-wrap mt-1">
                 <SheetDescription>Detalhes e histórico.</SheetDescription>
                 <div className="flex items-center gap-2 ml-2">

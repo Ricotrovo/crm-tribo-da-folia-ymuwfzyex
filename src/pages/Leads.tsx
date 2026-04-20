@@ -405,15 +405,57 @@ export default function Leads() {
                             <span>{lead.guest_count} Convidados</span>
                           </div>
                         )}
-                        <div className="flex items-center justify-between mt-1">
-                          <div className="text-[10px] text-muted-foreground">
-                            Criado: {new Date(lead.created).toLocaleDateString('pt-BR')}
+                        <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-border/50">
+                          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                            <span>
+                              Criado: {new Date(lead.created).toLocaleDateString('pt-BR')}
+                            </span>
+                            {lead.expand?.profile_id && (
+                              <span className="font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded truncate max-w-[100px]">
+                                {lead.expand.profile_id.name || 'Vendedor'}
+                              </span>
+                            )}
                           </div>
-                          {lead.expand?.profile_id && (
-                            <div className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                              {lead.expand.profile_id.name || 'Vendedor'}
-                            </div>
-                          )}
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="text-muted-foreground">
+                              Contato:{' '}
+                              {lead.last_contact_date
+                                ? new Date(lead.last_contact_date).toLocaleDateString('pt-BR')
+                                : new Date(lead.created).toLocaleDateString('pt-BR')}
+                            </span>
+                            {(() => {
+                              const referenceDateStr = lead.last_contact_date || lead.created
+                              const refDate = referenceDateStr
+                                ? new Date(referenceDateStr)
+                                : new Date()
+                              const refDateOnly = new Date(
+                                refDate.getFullYear(),
+                                refDate.getMonth(),
+                                refDate.getDate(),
+                              )
+                              const now = new Date()
+                              const nowOnly = new Date(
+                                now.getFullYear(),
+                                now.getMonth(),
+                                now.getDate(),
+                              )
+                              const diffTime = nowOnly.getTime() - refDateOnly.getTime()
+                              const days = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)))
+                              const isInactive = days > 9
+                              return (
+                                <span
+                                  className={cn(
+                                    'font-medium whitespace-nowrap',
+                                    isInactive
+                                      ? 'text-red-500 animate-pulse'
+                                      : 'text-muted-foreground',
+                                  )}
+                                >
+                                  {days} {days === 1 ? 'dia' : 'dias'} inativo
+                                </span>
+                              )
+                            })()}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

@@ -23,6 +23,7 @@ export interface Lead {
   temperature?: string
   event_date?: string
   guest_count?: number
+  last_contact_date?: string
   is_existing_client?: boolean
   has_previous_events?: boolean
   referral_info?: string
