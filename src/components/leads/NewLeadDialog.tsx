@@ -67,10 +67,10 @@ export function NewLeadDialog({
       if (lead) {
         setFormData({
           ...lead,
-          cpf: lead.cpf ? maskCPF(lead.cpf) : '',
-          phone: lead.phone ? maskPhone(lead.phone) : '',
-          rg: lead.rg ? maskRG(lead.rg) : '',
-          address_zip: lead.address_zip ? maskCEP(lead.address_zip) : '',
+          cpf: lead.cpf ? maskCPF(String(lead.cpf)) : '',
+          phone: lead.phone ? maskPhone(String(lead.phone)) : '',
+          rg: lead.rg ? maskRG(String(lead.rg)) : '',
+          address_zip: lead.address_zip ? maskCEP(String(lead.address_zip)) : '',
         })
         loadChildren(lead.id)
       } else {
@@ -166,10 +166,10 @@ export function NewLeadDialog({
       }
       if (!payload.email) payload.email = ''
 
-      if (payload.cpf) payload.cpf = payload.cpf.replace(/\D/g, '')
-      if (payload.phone) payload.phone = payload.phone.replace(/\D/g, '')
-      if (payload.address_zip) payload.address_zip = payload.address_zip.replace(/\D/g, '')
-      if (payload.rg) payload.rg = payload.rg.replace(/[.-]/g, '')
+      if (payload.cpf) payload.cpf = String(payload.cpf).replace(/\D/g, '')
+      if (payload.phone) payload.phone = String(payload.phone).replace(/\D/g, '')
+      if (payload.address_zip) payload.address_zip = String(payload.address_zip).replace(/\D/g, '')
+      if (payload.rg) payload.rg = String(payload.rg).replace(/[.-]/g, '')
 
       let savedLead: Lead
       if (lead?.id) {
@@ -200,7 +200,7 @@ export function NewLeadDialog({
       setFieldErrors(errors)
 
       if (errors.phone && formData.phone) {
-        const existing = await getLeadByPhone(formData.phone.replace(/\D/g, ''))
+        const existing = await getLeadByPhone(String(formData.phone).replace(/\D/g, ''))
         if (existing && existing.id !== lead?.id) {
           const ownerName = existing.expand?.profile_id?.name || 'outro vendedor'
           toast({

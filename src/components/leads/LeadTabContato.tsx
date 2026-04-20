@@ -49,7 +49,7 @@ export function LeadTabContato({ lead, onChange, fieldErrors = {} }: Props) {
             />
             {lead.phone && (
               <a
-                href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                href={`https://wa.me/55${String(lead.phone).replace(/\D/g, '')}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#25D366] text-white hover:bg-[#128C7E] h-9 px-3 shrink-0 shadow-sm"

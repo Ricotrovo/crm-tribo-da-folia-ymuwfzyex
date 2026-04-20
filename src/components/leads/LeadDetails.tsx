@@ -67,10 +67,10 @@ export function LeadDetails({
       const data = await getLead(leadId)
       setLead({
         ...data,
-        cpf: data.cpf ? maskCPF(data.cpf) : '',
-        phone: data.phone ? maskPhone(data.phone) : '',
-        rg: data.rg ? maskRG(data.rg) : '',
-        address_zip: data.address_zip ? maskCEP(data.address_zip) : '',
+        cpf: data.cpf ? maskCPF(String(data.cpf)) : '',
+        phone: data.phone ? maskPhone(String(data.phone)) : '',
+        rg: data.rg ? maskRG(String(data.rg)) : '',
+        address_zip: data.address_zip ? maskCEP(String(data.address_zip)) : '',
       })
       setFieldErrors({})
     } catch (e) {
@@ -118,10 +118,10 @@ export function LeadDetails({
       }
       if (!payload.email) payload.email = ''
 
-      if (payload.cpf) payload.cpf = payload.cpf.replace(/\D/g, '')
-      if (payload.phone) payload.phone = payload.phone.replace(/\D/g, '')
-      if (payload.address_zip) payload.address_zip = payload.address_zip.replace(/\D/g, '')
-      if (payload.rg) payload.rg = payload.rg.replace(/[.-]/g, '')
+      if (payload.cpf) payload.cpf = String(payload.cpf).replace(/\D/g, '')
+      if (payload.phone) payload.phone = String(payload.phone).replace(/\D/g, '')
+      if (payload.address_zip) payload.address_zip = String(payload.address_zip).replace(/\D/g, '')
+      if (payload.rg) payload.rg = String(payload.rg).replace(/[.-]/g, '')
 
       await updateLead(leadId, payload)
       toast({ title: 'Sucesso', description: 'Lead atualizado com sucesso.' })
@@ -131,7 +131,7 @@ export function LeadDetails({
       setFieldErrors(errors)
 
       if (errors.phone && lead.phone) {
-        const existing = await getLeadByPhone(lead.phone.replace(/\D/g, ''))
+        const existing = await getLeadByPhone(String(lead.phone).replace(/\D/g, ''))
         if (existing && existing.id !== leadId) {
           const ownerName = existing.expand?.profile_id?.name || 'outro vendedor'
           toast({
@@ -226,7 +226,7 @@ export function LeadDetails({
                 </div>
                 {lead.phone && (
                   <a
-                    href={`https://wa.me/55${lead.phone.replace(/\D/g, '')}`}
+                    href={`https://wa.me/55${String(lead.phone).replace(/\D/g, '')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center justify-center rounded-md text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-[#25D366] text-white hover:bg-[#128C7E] h-6 px-2 py-1 gap-1.5 shadow-sm"
