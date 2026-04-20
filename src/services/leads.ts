@@ -25,11 +25,16 @@ export interface Lead {
   guest_count?: number
   last_contact_date?: string
   is_existing_client?: boolean
-  has_previous_events?: boolean
   referral_info?: string
   profile_id: string | null
+  seller_id: string | null
   expand?: {
     profile_id?: {
+      id: string
+      name: string
+      role: string
+    }
+    seller_id?: {
       id: string
       name: string
       role: string
@@ -62,12 +67,12 @@ export interface Interaction {
 export const getLeads = async () => {
   const records = await pb
     .collection('leads')
-    .getFullList({ sort: '-created', expand: 'profile_id' })
+    .getFullList({ sort: '-created', expand: 'profile_id,seller_id' })
   return records as unknown as Lead[]
 }
 
 export const getLead = async (id: string) => {
-  const record = await pb.collection('leads').getOne(id, { expand: 'profile_id' })
+  const record = await pb.collection('leads').getOne(id, { expand: 'profile_id,seller_id' })
   return record as unknown as Lead
 }
 
@@ -75,7 +80,7 @@ export const getLeadByPhone = async (phone: string) => {
   try {
     const record = await pb
       .collection('leads')
-      .getFirstListItem(`phone = '${phone}'`, { expand: 'profile_id' })
+      .getFirstListItem(`phone = '${phone}'`, { expand: 'profile_id,seller_id' })
     return record as unknown as Lead
   } catch {
     return null

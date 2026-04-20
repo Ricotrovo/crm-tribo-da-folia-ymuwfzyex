@@ -7,14 +7,15 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { getLead, updateLead, deleteLead, Lead, getLeadByPhone } from '@/services/leads'
 import { useToast } from '@/hooks/use-toast'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { LeadTabContato } from './LeadTabContato'
 import { LeadTabFamilia } from './LeadTabFamilia'
-import { LeadTabContratos } from './LeadTabContratos'
 import { LeadTabDocumentacao } from './LeadTabDocumentacao'
+import { LeadTabContratos } from './LeadTabContratos'
 import { LeadInteractions } from './LeadInteractions'
 import { validateCPF, maskCPF, maskPhone, maskRG, maskCEP } from '@/lib/formatters'
 import { Trash2, MessageCircle } from 'lucide-react'
@@ -106,7 +107,7 @@ export function LeadDetails({
     try {
       const payload = { ...lead }
       payload.is_existing_client = !!payload.is_existing_client
-      payload.has_previous_events = !!payload.has_previous_events
+
       if (
         payload.guest_count !== undefined &&
         payload.guest_count !== null &&
@@ -133,7 +134,10 @@ export function LeadDetails({
       if (errors.phone && lead.phone) {
         const existing = await getLeadByPhone(String(lead.phone).replace(/\D/g, ''))
         if (existing && existing.id !== leadId) {
-          const ownerName = existing.expand?.profile_id?.name || 'outro vendedor'
+          const ownerName =
+            existing.expand?.seller_id?.name ||
+            existing.expand?.profile_id?.name ||
+            'outro vendedor'
           toast({
             title: 'Lead Duplicado',
             description: `Este lead já está cadastrado e sendo atendido por ${ownerName}.`,
@@ -172,7 +176,7 @@ export function LeadDetails({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto bg-muted/20">
         <SheetHeader className="mb-4">
           <div className="flex justify-between items-start pr-8">
             <div className="flex flex-col gap-1 text-left">
@@ -208,11 +212,11 @@ export function LeadDetails({
                 <SheetDescription>Detalhes e histórico.</SheetDescription>
                 <div className="flex items-center gap-2 ml-2">
                   <Select
-                    value={lead.profile_id || ''}
-                    onValueChange={(v) => setLead({ ...lead, profile_id: v })}
-                    disabled={!!lead.profile_id && user?.role !== 'Gerente'}
+                    value={lead.seller_id || lead.profile_id || ''}
+                    onValueChange={(v) => setLead({ ...lead, seller_id: v })}
+                    disabled={(!!lead.seller_id || !!lead.profile_id) && user?.role !== 'Gerente'}
                   >
-                    <SelectTrigger className="h-6 text-xs w-[140px]">
+                    <SelectTrigger className="h-6 text-xs w-[140px] bg-background">
                       <SelectValue placeholder="Vendedor..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -221,6 +225,7 @@ export function LeadDetails({
                           (u) =>
                             u.role === 'Vendedor' ||
                             u.role_title === 'Vendedor' ||
+                            u.id === lead.seller_id ||
                             u.id === lead.profile_id,
                         )
                         .map((u) => (
@@ -271,35 +276,61 @@ export function LeadDetails({
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue="contato" className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto">
-            <TabsTrigger value="contato">Contato</TabsTrigger>
-            <TabsTrigger value="familia">Evento/Família</TabsTrigger>
-            <TabsTrigger value="documentacao">Documentação</TabsTrigger>
-            <TabsTrigger value="contratos">Contratual</TabsTrigger>
-            <TabsTrigger value="interacoes">Histórico</TabsTrigger>
+        <Tabs defaultValue="geral" className="w-full">
+          <TabsList className="w-full grid grid-cols-2">
+            <TabsTrigger value="geral">Geral</TabsTrigger>
+            <TabsTrigger value="contratual">Informações Contratuais</TabsTrigger>
           </TabsList>
 
           <div className="mt-4 pb-20">
-            <TabsContent value="contato" className="animate-fade-in">
-              <LeadTabContato lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
+            <TabsContent value="geral" className="animate-fade-in space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Contato</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LeadTabContato lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Evento/Família</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LeadTabFamilia
+                    lead={lead}
+                    onChange={setLead}
+                    leadId={leadId}
+                    fieldErrors={fieldErrors}
+                  />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Histórico</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LeadInteractions leadId={leadId} />
+                </CardContent>
+              </Card>
             </TabsContent>
-            <TabsContent value="familia" className="animate-fade-in">
-              <LeadTabFamilia
-                lead={lead}
-                onChange={setLead}
-                leadId={leadId}
-                fieldErrors={fieldErrors}
-              />
-            </TabsContent>
-            <TabsContent value="documentacao" className="animate-fade-in">
-              <LeadTabDocumentacao lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
-            </TabsContent>
-            <TabsContent value="contratos" className="animate-fade-in">
-              <LeadTabContratos lead={lead} onChange={setLead} />
-            </TabsContent>
-            <TabsContent value="interacoes" className="animate-fade-in">
-              <LeadInteractions leadId={leadId} />
+            <TabsContent value="contratual" className="animate-fade-in space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Documentação</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LeadTabDocumentacao lead={lead} onChange={setLead} fieldErrors={fieldErrors} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Contratos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LeadTabContratos leadId={leadId} />
+                </CardContent>
+              </Card>
             </TabsContent>
           </div>
         </Tabs>

@@ -134,7 +134,7 @@ export function LeadTabContato({ lead, onChange, fieldErrors = {} }: Props) {
         />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 bg-muted/40 p-4 rounded-lg border border-border/50">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 bg-background p-4 rounded-lg border">
         <div className="flex items-center space-x-2">
           <Switch
             id="is_existing_client"
@@ -142,14 +142,6 @@ export function LeadTabContato({ lead, onChange, fieldErrors = {} }: Props) {
             onCheckedChange={(c) => handleChange('is_existing_client', c)}
           />
           <Label htmlFor="is_existing_client">Já é cliente?</Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="has_previous_events"
-            checked={!!lead.has_previous_events}
-            onCheckedChange={(c) => handleChange('has_previous_events', c)}
-          />
-          <Label htmlFor="has_previous_events">Já fez evento conosco?</Label>
         </div>
       </div>
     </div>

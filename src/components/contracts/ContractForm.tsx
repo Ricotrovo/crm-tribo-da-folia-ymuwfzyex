@@ -87,7 +87,11 @@ export function ContractForm({
   const onSubmit = async (data: FormValues) => {
     try {
       setIsSubmitting(true)
-      await createContract(data, calculation)
+      await createContract({
+        client_id: data.client_id,
+        total_value: calculation.totalValue,
+        notes: `Menu: ${data.menu}, Guests: ${data.guests}`,
+      })
       toast.success('Contract and installments generated successfully!')
       onSuccess()
     } catch (error: any) {
