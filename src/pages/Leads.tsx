@@ -116,11 +116,16 @@ export default function Leads() {
   }
 
   const filteredLeads = leads.filter((l) => {
+    if (!l) return false
     if (appliedSearch) {
       const searchLower = appliedSearch.toLowerCase()
-      const matchName = l.name?.toLowerCase().includes(searchLower)
+      const matchName =
+        typeof l.name === 'string' ? l.name.toLowerCase().includes(searchLower) : false
       const numericSearch = appliedSearch.replace(/\D/g, '')
-      const matchPhone = numericSearch ? l.phone?.replace(/\D/g, '').includes(numericSearch) : false
+      const matchPhone =
+        numericSearch && typeof l.phone === 'string'
+          ? l.phone.replace(/\D/g, '').includes(numericSearch)
+          : false
       if (!matchName && !matchPhone) return false
     }
     if (filterTemp !== 'all' && l.temperature !== filterTemp) return false
@@ -379,7 +384,7 @@ export default function Leads() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-3 pt-0 flex flex-col gap-2">
-                        {lead.phone && (
+                        {lead.phone && typeof lead.phone === 'string' && (
                           <div
                             className="flex items-center text-xs gap-1.5"
                             onClick={(e) => e.stopPropagation()}
@@ -416,7 +421,10 @@ export default function Leads() {
                         <div className="flex flex-col gap-1 mt-2 pt-2 border-t border-border/50">
                           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>
-                              Criado: {new Date(lead.created).toLocaleDateString('pt-BR')}
+                              Criado:{' '}
+                              {lead.created
+                                ? new Date(lead.created).toLocaleDateString('pt-BR')
+                                : '-'}
                             </span>
                             {lead.expand?.profile_id && (
                               <span className="font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded truncate max-w-[100px]">
@@ -429,7 +437,9 @@ export default function Leads() {
                               Contato:{' '}
                               {lead.last_contact_date
                                 ? new Date(lead.last_contact_date).toLocaleDateString('pt-BR')
-                                : new Date(lead.created).toLocaleDateString('pt-BR')}
+                                : lead.created
+                                  ? new Date(lead.created).toLocaleDateString('pt-BR')
+                                  : '-'}
                             </span>
                             {(() => {
                               const referenceDateStr = lead.last_contact_date || lead.created

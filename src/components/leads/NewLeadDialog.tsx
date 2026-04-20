@@ -321,6 +321,8 @@ export function NewLeadDialog({
                       <SelectItem value="Contato Inicial">Contato Inicial</SelectItem>
                       <SelectItem value="Proposta">Proposta</SelectItem>
                       <SelectItem value="Visita">Visita</SelectItem>
+                      <SelectItem value="Revisar">Revisar</SelectItem>
+                      <SelectItem value="Clientes Adormecidos">Clientes Adormecidos</SelectItem>
                       <SelectItem value="Fechado">Fechado</SelectItem>
                     </SelectContent>
                   </Select>
