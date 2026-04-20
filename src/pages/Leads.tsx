@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { getLeads, updateLeadStatus, createLead, Lead } from '@/services/leads'
 import { useRealtime } from '@/hooks/use-realtime'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { LeadDetails } from '@/components/leads/LeadDetails'
 
 const STAGES = ['Novo', 'Contato Inicial', 'Proposta', 'Visita', 'Fechado'] as const
 
@@ -26,6 +27,7 @@ export default function Leads() {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [isNewLeadOpen, setIsNewLeadOpen] = useState(false)
   const [newLeadName, setNewLeadName] = useState('')
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
 
   const { toast } = useToast()
 
@@ -150,8 +152,9 @@ export default function Leads() {
                       draggable
                       onDragStart={(e) => handleDragStart(e, lead.id)}
                       onDragEnd={handleDragEnd}
+                      onClick={() => setSelectedLeadId(lead.id)}
                       className={cn(
-                        'cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors shadow-sm',
+                        'cursor-pointer active:cursor-grabbing hover:border-primary/50 transition-colors shadow-sm',
                         draggingId === lead.id ? 'opacity-50' : 'opacity-100',
                       )}
                     >
@@ -178,6 +181,16 @@ export default function Leads() {
           )
         })}
       </div>
+
+      {selectedLeadId && (
+        <LeadDetails
+          leadId={selectedLeadId}
+          open={!!selectedLeadId}
+          onOpenChange={(open) => {
+            if (!open) setSelectedLeadId(null)
+          }}
+        />
+      )}
 
       <Dialog open={isNewLeadOpen} onOpenChange={setIsNewLeadOpen}>
         <DialogContent>

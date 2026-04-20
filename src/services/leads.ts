@@ -70,6 +70,10 @@ export const updateLeadStatus = async (id: string, status: string) => {
   return record as unknown as Lead
 }
 
+export const deleteLead = async (id: string) => {
+  await pb.collection('leads').delete(id)
+}
+
 export const getChildren = async (leadId: string) => {
   const records = await pb
     .collection('children')
