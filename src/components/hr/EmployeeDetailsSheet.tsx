@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Trash2, Eye, Search } from 'lucide-react'
 import { extractFieldErrors, getErrorMessage } from '@/lib/pocketbase/errors'
 import { maskCPF, maskPhone, maskRG, maskCEP, validateCPF } from '@/lib/formatters'
+import { useAuth } from '@/hooks/use-auth'
 
 export function EmployeeDetailsSheet({
   user,
@@ -58,6 +59,9 @@ export function EmployeeDetailsSheet({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [cpfError, setCpfError] = useState(false)
   const [searchingCep, setSearchingCep] = useState(false)
+  const { user: currentUser } = useAuth()
+  const isAdmin =
+    currentUser?.role?.toLowerCase() === 'admin' || currentUser?.role?.toLowerCase() === 'gerente'
 
   useEffect(() => {
     if (open) {
@@ -423,8 +427,37 @@ export function EmployeeDetailsSheet({
                     onChange={(e) => setFormData({ ...formData, admission_date: e.target.value })}
                   />
                 </div>
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label>Data de Desligamento</Label>
+                    <Input
+                      type="date"
+                      value={formData.resignation_date || ''}
+                      onChange={(e) =>
+                        setFormData({ ...formData, resignation_date: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
+                {isAdmin && (
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={formData.status || 'active'}
+                      onValueChange={(v) => setFormData({ ...formData, status: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Ativo</SelectItem>
+                        <SelectItem value="inactive">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
-                  <Label>Salário (R$)</Label>
+                  <Label>Último Salário (R$)</Label>
                   <Input
                     type="number"
                     value={formData.salary || ''}
@@ -434,6 +467,7 @@ export function EmployeeDetailsSheet({
                         salary: e.target.value ? Number(e.target.value) : undefined,
                       })
                     }
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">

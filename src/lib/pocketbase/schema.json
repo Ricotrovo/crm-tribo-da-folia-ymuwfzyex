@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T21:14:12.007Z",
+  "generatedAt": "2026-04-20T21:25:37.943Z",
   "collections": [
     {
       "name": "users",
@@ -9,7 +9,7 @@
         "view": "@request.auth.id != ''",
         "create": "",
         "update": "@request.auth.id != ''",
-        "delete": "id = @request.auth.id || @request.auth.role = 'gerente'"
+        "delete": "@request.auth.role = 'gerente' || @request.auth.role = 'Gerente'"
       },
       "fields": [
         {
@@ -182,6 +182,19 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "resignation_date",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["active", "inactive"]
         }
       ],
       "indexes": [

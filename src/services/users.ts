@@ -8,6 +8,8 @@ export interface User {
   role_title?: string
   salary?: number
   admission_date?: string
+  resignation_date?: string
+  status?: string
   vacation_info?: string
   crm_access_level?: string
   avatar: string

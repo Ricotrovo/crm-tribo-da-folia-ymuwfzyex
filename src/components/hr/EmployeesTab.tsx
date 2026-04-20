@@ -20,6 +20,14 @@ import pb from '@/lib/pocketbase/client'
 import { deleteUser } from '@/services/users'
 import { useToast } from '@/hooks/use-toast'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { cn } from '@/lib/utils'
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -37,6 +45,7 @@ export function EmployeesTab() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('active')
   const { toast } = useToast()
   const { user: currentUser } = useAuth()
 
@@ -72,26 +81,43 @@ export function EmployeesTab() {
 
   const filteredEmployees = employees.filter((emp) => {
     const term = searchTerm.toLowerCase()
-    if (!term) return true
+    let matchTerm = true
+    if (term) {
+      const matchName = emp.name?.toLowerCase().includes(term)
+      const matchEmail = emp.email?.toLowerCase().includes(term)
+      const matchCpf = emp.cpf?.replace(/\D/g, '').includes(term.replace(/\D/g, ''))
+      matchTerm = !!(matchName || matchEmail || matchCpf)
+    }
 
-    const matchName = emp.name?.toLowerCase().includes(term)
-    const matchEmail = emp.email?.toLowerCase().includes(term)
-    const matchCpf = emp.cpf?.replace(/\D/g, '').includes(term.replace(/\D/g, ''))
+    const empStatus = emp.status || 'active'
+    const matchStatus = statusFilter === 'all' || empStatus === statusFilter
 
-    return matchName || matchEmail || matchCpf
+    return matchTerm && matchStatus
   })
 
   return (
     <>
       <div className="flex flex-col sm:flex-row justify-between mb-4 gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, email ou CPF..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-1 gap-2 max-w-2xl">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, email ou CPF..."
+              className="pl-8"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px] bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Ativos</SelectItem>
+              <SelectItem value="inactive">Inativos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Button
           onClick={() => {
@@ -113,19 +139,20 @@ export function EmployeesTab() {
                 <TableHead>Email</TableHead>
                 <TableHead>Cargo (Role)</TableHead>
                 <TableHead>Admissão</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                     {searchTerm
                       ? 'Nenhum funcionário encontrado para a busca.'
                       : 'Nenhum funcionário encontrado.'}
@@ -157,6 +184,18 @@ export function EmployeesTab() {
                         ? new Date(emp.admission_date + 'T12:00:00').toLocaleDateString('pt-BR')
                         : '-'}
                     </TableCell>
+                    <TableCell>
+                      <span
+                        className={cn(
+                          'px-2 py-1 rounded-full text-[10px] font-medium uppercase tracking-wider',
+                          !emp.status || emp.status === 'active'
+                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                            : 'bg-destructive/10 text-destructive',
+                        )}
+                      >
+                        {!emp.status || emp.status === 'active' ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -169,7 +208,7 @@ export function EmployeesTab() {
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        {currentUser?.role === 'gerente' && (
+                        {currentUser?.role?.toLowerCase() === 'gerente' && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
