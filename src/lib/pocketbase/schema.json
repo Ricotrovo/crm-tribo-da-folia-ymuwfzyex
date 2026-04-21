@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T22:38:04.259Z",
+  "generatedAt": "2026-04-21T23:10:53.209Z",
   "collections": [
     {
       "name": "users",
@@ -485,7 +485,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Espaço Premium", "Espaço Kids&Teens", "Ambos os Salões"]
+          "selectValues": ["Espaço Premium", "Espaço Kids&Teens", "Prime & KidsTeens"]
         },
         {
           "name": "start_time",
@@ -671,7 +671,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Espaço Premium", "Espaço Kids&Teens", "Ambos os Salões"]
+          "selectValues": ["Espaço Premium", "Espaço Kids&Teens", "Prime & KidsTeens"]
         },
         {
           "name": "has_alcohol",
@@ -697,6 +697,19 @@
           "required": false,
           "system": false,
           "collectionRef": "menus"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["draft", "active", "canceled", "finalized"]
+        },
+        {
+          "name": "duration",
+          "type": "number",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

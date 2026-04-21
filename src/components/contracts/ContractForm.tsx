@@ -40,7 +40,7 @@ const formSchema = z.object({
   birthday_person_id: z.string().optional().or(z.literal('')),
   event_date: z.string().min(1, 'Required'),
   start_time: z.string().min(1, 'Required'),
-  event_end_time: z.string().min(1, 'Required'),
+  duration: z.coerce.number().min(4).max(12).default(4),
   salon_selection: z.string().min(1, 'Required'),
   menu_id: z.string().min(1, 'Required'),
   guests: z.coerce.number().min(50, 'Minimum 50'),
@@ -93,7 +93,7 @@ export function ContractForm({
       birthday_person_id: '',
       menu_id: '',
       start_time: '',
-      event_end_time: '',
+      duration: 4,
       salon_selection: '',
       payment_method: '',
       decoration_supplier_id: '',
@@ -133,8 +133,8 @@ export function ContractForm({
       discount = 0,
       extraGuestsValue = 0
     const isEscolar = selectedMenu?.name.toLowerCase() === 'escolar'
-    const isAmbos = values.salon_selection === 'Ambos os Salões'
-    const salonFee = isAmbos ? 4500 : 0
+    const isPrime = values.salon_selection === 'Prime & KidsTeens'
+    const salonFee = isPrime ? 4500 : 0
 
     if (selectedMenu && values.event_date) {
       const [year, month, day] = values.event_date.split('-').map(Number)
@@ -154,7 +154,12 @@ export function ContractForm({
 
     const photoVal = values.photographer && !values.photographer_courtesy ? 500 : 0
     const decoVal = values.extra_decoration && !values.extra_decoration_courtesy ? 300 : 0
-    const totalValue = baseValue - discount + extraGuestsValue + photoVal + decoVal + salonFee
+    const baseValueBeforeOvertime =
+      baseValue - discount + extraGuestsValue + photoVal + decoVal + salonFee
+    const duration = values.duration || 4
+    const extraHours = Math.max(0, duration - 4)
+    const overtimeVal = extraHours * (baseValueBeforeOvertime * 0.25)
+    const totalValue = baseValueBeforeOvertime + overtimeVal
 
     return {
       baseValue,
@@ -163,6 +168,8 @@ export function ContractForm({
       photoVal,
       decoVal,
       salonFee,
+      overtimeVal,
+      baseValueBeforeOvertime,
       totalValue,
       values,
     }
@@ -265,7 +272,10 @@ export function ContractForm({
           ? [{ name: 'Extra Guests', status: 'Charged', value: calculation.extraGuestsValue }]
           : []),
         ...(calculation.salonFee > 0
-          ? [{ name: 'Taxa Ambos os Salões', status: 'Charged', value: calculation.salonFee }]
+          ? [{ name: 'Taxa Prime & KidsTeens', status: 'Charged', value: calculation.salonFee }]
+          : []),
+        ...(calculation.overtimeVal > 0
+          ? [{ name: 'Horas Extras', status: 'Charged', value: calculation.overtimeVal }]
           : []),
         {
           name: 'Photographer',
@@ -290,7 +300,9 @@ export function ContractForm({
       const contractRecord = await createContract({
         lead_id: data.client_id,
         birthday_person_id: data.birthday_person_id || undefined,
-        total_value: calculation.totalValue,
+        total_value: calculation.baseValueBeforeOvertime,
+        duration: data.duration,
+        status: 'draft',
         notes: `Theme: ${data.theme || '-'}`,
         cake_notes: data.cake_notes,
         theme_notes: data.theme_notes,
@@ -303,7 +315,6 @@ export function ContractForm({
         installments: data.installments,
         decoration_supplier_id: data.decoration_supplier_id || undefined,
         event_start_time: data.start_time,
-        event_end_time: data.event_end_time,
         guest_count: data.guests,
         salon: data.salon_selection,
         has_alcohol: data.has_alcohol,
@@ -338,7 +349,7 @@ export function ContractForm({
         status: 'confirmed',
         start_time: data.start_time,
         salon_selection: data.salon_selection,
-        duration: 4,
+        duration: data.duration,
         theme: data.theme,
         cake_flavor: data.cake_flavor,
         decoration_supplier_id: data.decoration_supplier_id || undefined,
@@ -457,23 +468,25 @@ export function ContractForm({
             />
             <FormField
               control={form.control}
-              name="event_end_time"
+              name="duration"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>End Time</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <FormLabel>Duração (Horas)</FormLabel>
+                  <Select
+                    onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                    value={String(field.value)}
+                  >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="End" />
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="16:00">16:00</SelectItem>
-                      <SelectItem value="16:30">16:30</SelectItem>
-                      <SelectItem value="18:00">18:00</SelectItem>
-                      <SelectItem value="23:00">23:00</SelectItem>
-                      <SelectItem value="23:30">23:30</SelectItem>
-                      <SelectItem value="00:00">00:00</SelectItem>
+                      {[4, 5, 6, 7, 8].map((h) => (
+                        <SelectItem key={h} value={String(h)}>
+                          {h} horas
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -496,7 +509,7 @@ export function ContractForm({
                   <SelectContent>
                     <SelectItem value="Espaço Premium">Espaço Premium</SelectItem>
                     <SelectItem value="Espaço Kids&Teens">Espaço Kids&Teens</SelectItem>
-                    <SelectItem value="Ambos os Salões">Ambos os Salões</SelectItem>
+                    <SelectItem value="Prime & KidsTeens">Prime & KidsTeens</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />

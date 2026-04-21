@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { MoreHorizontal, Download, FileText } from 'lucide-react'
+import { MoreHorizontal, Download, FileText, Edit, XCircle, Trash } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +17,41 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
-import { exportContractToPDF } from '@/services/contracts'
+import { exportContractToPDF, updateContract } from '@/services/contracts'
 import { toast } from 'sonner'
+import { EditContractSheet } from './EditContractSheet'
+import { useState } from 'react'
+import pb from '@/lib/pocketbase/client'
 
 export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoading: boolean }) {
+  const [editingContract, setEditingContract] = useState<any>(null)
+
+  const handleCancelContract = async (contract: any) => {
+    if (!confirm('Deseja realmente cancelar este contrato? A data será liberada na agenda.')) return;
+    try {
+      await updateContract(contract.id, { status: 'canceled' });
+      const events = await pb.collection('events').getFullList({ filter: `contract_id = '${contract.id}'` });
+      for (const ev of events) {
+         await pb.collection('events').update(ev.id, { status: 'canceled' });
+      }
+      toast.success('Contrato cancelado com sucesso.');
+      window.location.reload();
+    } catch (e) {
+      toast.error('Erro ao cancelar contrato.');
+    }
+  }
+
+  const handleDelete = async (contract: any) => {
+    if (!confirm('Deseja realmente excluir este contrato?')) return;
+    try {
+      await pb.collection('contracts').delete(contract.id);
+      toast.success('Contrato excluído com sucesso.');
+      window.location.reload();
+    } catch (e) {
+      toast.error('Erro ao excluir contrato.');
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Paid':
@@ -91,8 +122,8 @@ export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoa
             <TableCell>{formatDate(contract.events?.date)}</TableCell>
             <TableCell>R$ {contract.total_value?.toLocaleString()}</TableCell>
             <TableCell>
-              <Badge className={`${getStatusColor(contract.status)} text-white border-transparent`}>
-                {contract.status}
+              <Badge className={`${getStatusColor(contract.status)} text-white border-transparent uppercase`}>
+                {contract.status || 'DRAFT'}
               </Badge>
             </TableCell>
             <TableCell className="text-right">
@@ -105,11 +136,19 @@ export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoa
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => setEditingContract(contract)}>
+                    <Edit className="mr-2 h-4 w-4" /> Alterar Contrato
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleExport(contract)}>
                     <Download className="mr-2 h-4 w-4" /> Download PDF
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>View Installments</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleCancelContract(contract)} disabled={contract.status === 'canceled'}>
+                    <XCircle className="mr-2 h-4 w-4" /> Cancelar Contrato
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDelete(contract)} disabled={contract.status !== 'draft'}>
+                    <Trash className="mr-2 h-4 w-4 text-red-500" /> <span className="text-red-500">Excluir</span>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </TableCell>
@@ -117,5 +156,15 @@ export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoa
         ))}
       </TableBody>
     </Table>
+
+    {editingContract && (
+      <EditContractSheet 
+        contract={editingContract} 
+        open={!!editingContract} 
+        onOpenChange={(o: boolean) => !o && setEditingContract(null)}
+        onSuccess={() => { setEditingContract(null); window.location.reload(); }}
+      />
+    )}
+    </>
   )
 }
