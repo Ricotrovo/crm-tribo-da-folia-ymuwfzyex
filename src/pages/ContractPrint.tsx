@@ -10,6 +10,8 @@ export default function ContractPrint() {
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const [childrenList, setChildrenList] = useState<any[]>([])
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -17,11 +19,27 @@ export default function ContractPrint() {
           expand: 'lead_id,birthday_person_id,menu_id,decoration_supplier_id',
         })
         setContract(c)
+
         const p = await pb.collection('payments').getFullList({
           filter: `contract_id = '${id}'`,
           sort: 'due_date',
         })
         setPayments(p)
+
+        let chList: any[] = []
+        if (c.expand?.birthday_person_id) {
+          chList = Array.isArray(c.expand.birthday_person_id)
+            ? c.expand.birthday_person_id
+            : [c.expand.birthday_person_id]
+        }
+
+        if (chList.length === 0 && c.lead_id) {
+          const leadCh = await pb.collection('children').getFullList({
+            filter: `lead_id = '${c.lead_id}'`,
+          })
+          chList = leadCh
+        }
+        setChildrenList(chList)
       } catch (err) {
         console.error(err)
       } finally {
@@ -35,21 +53,28 @@ export default function ContractPrint() {
   if (!contract) return <div className="p-8">Contrato não encontrado.</div>
 
   const lead = contract.expand?.lead_id
-  const child = contract.expand?.birthday_person_id
-  const menu = contract.expand?.menu_id
 
-  let ageAtParty = ''
-  if (child?.birthday && contract.event_date) {
-    const b = new Date(child.birthday)
-    const p = new Date(contract.event_date.split(' ')[0])
+  const getAgeAtParty = (birthdayStr: string, eventDateStr: string) => {
+    if (!birthdayStr || !eventDateStr) return ''
+    const b = new Date(birthdayStr)
+    const p = new Date(eventDateStr.split(' ')[0])
     if (!isNaN(b.getTime()) && !isNaN(p.getTime())) {
       let age = p.getFullYear() - b.getFullYear()
       const m = p.getMonth() - b.getMonth()
       if (m < 0 || (m === 0 && p.getDate() < b.getDate())) {
         age--
       }
-      ageAtParty = Math.max(0, age).toString()
+      return Math.max(0, age).toString()
     }
+    return ''
+  }
+
+  const getDayOfWeek = (dateStr: string) => {
+    if (!dateStr) return ''
+    const date = new Date(dateStr.split(' ')[0] + 'T12:00:00')
+    if (isNaN(date.getTime())) return ''
+    const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+    return days[date.getDay()]
   }
 
   const formatCurrency = (val: number) =>
@@ -62,155 +87,142 @@ export default function ContractPrint() {
   }
 
   return (
-    <div className="bg-gray-100 min-h-screen py-8 print:bg-white print:py-0">
-      <div className="max-w-[210mm] mx-auto bg-white shadow-lg print:shadow-none p-8 text-black text-[12px] font-sans print:p-0">
-        <div className="flex justify-end mb-4 print:hidden">
-          <Button onClick={() => window.print()} className="gap-2">
-            <Printer className="w-4 h-4" />
-            Export to PDF / Imprimir
-          </Button>
-        </div>
+    <div className="bg-gray-100 min-h-screen py-8 print:bg-white print:py-0 print:p-0 flex flex-col items-center">
+      <div className="flex justify-end mb-4 print:hidden w-[210mm]">
+        <Button onClick={() => window.print()} className="gap-2">
+          <Printer className="w-4 h-4" />
+          Export to PDF / Imprimir
+        </Button>
+      </div>
 
-        <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
-          <div className="w-32 font-bold text-green-600 text-2xl leading-none">
+      <div className="w-[210mm] bg-white shadow-lg print:shadow-none p-8 print:p-0 text-black text-[12px] font-sans">
+        <div className="flex justify-between items-center mb-4">
+          <div className="w-40 font-bold text-green-600 text-2xl leading-none">
             Tribo <br />
             <span className="text-xs text-black font-normal">da Folia</span>
           </div>
-          <h1 className="text-lg font-bold">CONTRATO DE PRESTAÇÃO DE SERVIÇO</h1>
-          <div className="text-right">
-            <p className="text-red-600 font-bold text-base">
-              Nº Contrato: {contract.contract_number.replace('CTR-', '')}
+          <h1 className="text-[16px] font-bold uppercase">Contrato de Prestação de Serviço</h1>
+          <div className="text-right w-40">
+            <p className="text-red-600 font-bold text-sm">
+              Nº Contrato:{' '}
+              {contract.contract_number ? contract.contract_number.replace('CTR-', '') : ''}
             </p>
-            <p className="text-[10px]">Prime Sexta e véspera de feriado.</p>
+            <p className="text-[10px] font-bold">Prime Sexta e véspera de feriado.</p>
           </div>
         </div>
 
-        <div className="border border-black mb-2 flex">
-          <div className="flex-1 border-r border-black p-1 flex font-bold items-center">
-            DATA DA FESTA:{' '}
-            <span className="font-normal ml-1">{formatDate(contract.event_date)}</span>
-          </div>
-          <div className="flex-1 border-r border-black p-1 flex font-bold items-center">
-            HORÁRIO:{' '}
-            <span className="font-normal ml-1">
-              {contract.event_start_time} | {contract.event_end_time}
-            </span>
-          </div>
-          <div className="flex-1 border-r border-black p-1 flex font-bold items-center">
-            CONVIDADOS: <span className="font-normal ml-1">{contract.guest_count}</span>
-          </div>
-          <div className="flex-1 p-1 flex font-bold items-center">
-            SALÃO: <span className="font-normal ml-1">{contract.salon}</span>
-          </div>
-        </div>
-
-        <div className="border border-black mb-2">
-          <div className="flex border-b border-black">
-            <div className="flex-1 border-r border-black p-1">
-              <span className="font-bold">Aniversariante:</span> {child?.name || 'N/A'}
+        <div className="border border-black">
+          <div className="flex border-b border-black text-[11px] bg-gray-50 print:bg-white">
+            <div className="flex-1 border-r border-black p-2 font-bold flex items-center">
+              DATA DA FESTA:{' '}
+              <span className="font-normal ml-1">
+                {formatDate(contract.event_date)} {getDayOfWeek(contract.event_date)}
+              </span>
             </div>
-            <div className="flex-1 p-1">
-              <span className="font-bold">Data de Nascimento:</span> {formatDate(child?.birthday)} |{' '}
-              <span className="font-bold">Idade na Festa:</span> {ageAtParty}
+            <div className="flex-1 border-r border-black p-2 font-bold flex items-center">
+              HORÁRIO:{' '}
+              <span className="font-normal ml-1">
+                {contract.event_start_time} | {contract.event_end_time}
+              </span>
+            </div>
+            <div className="flex-1 border-r border-black p-2 font-bold flex items-center">
+              CONVIDADOS: <span className="font-normal ml-1">{contract.guest_count}</span>
+            </div>
+            <div className="flex-1 p-2 font-bold flex items-center">
+              SALÃO: <span className="font-normal ml-1">{contract.salon}</span>
             </div>
           </div>
 
-          <div className="flex border-b border-black">
-            <div className="flex-1 border-r border-black p-1">
+          {childrenList.map((child, idx) => (
+            <div className="flex border-b border-black text-[11px]" key={child.id || idx}>
+              <div className="w-1/2 border-r border-black p-2">
+                <span className="font-bold">Aniversariante:</span> {child.name}
+              </div>
+              <div className="w-1/2 p-2">
+                <span className="font-bold">Data de Nascimento:</span> {formatDate(child.birthday)}{' '}
+                | <span className="font-bold">Idade na Festa:</span>{' '}
+                {getAgeAtParty(child.birthday, contract.event_date)}
+              </div>
+            </div>
+          ))}
+
+          <div className="flex border-b border-black text-[11px]">
+            <div className="w-1/2 border-r border-black p-2">
               <span className="font-bold">Responsavel 1:</span> {lead?.name} | {lead?.phone}
             </div>
-            <div className="flex-1 p-1">
-              <span className="font-bold">Responsavel 2:</span> {lead?.spouse_name || 'N/A'} |{' '}
-              {lead?.phone2 || 'N/A'}
+            <div className="w-1/2 p-2">
+              <span className="font-bold">Responsavel 2:</span> {lead?.spouse_name || ''}{' '}
+              {lead?.spouse_name && lead?.phone2 ? '|' : ''} {lead?.phone2 || ''}
             </div>
           </div>
 
-          <div className="flex border-b border-black">
-            <div className="flex-1 border-r border-black p-1">
+          <div className="flex border-b border-black text-[11px]">
+            <div className="w-1/2 border-r border-black p-2">
               <span className="font-bold">E-mail:</span> {lead?.email}
             </div>
-            <div className="flex-1 p-1">
-              <span className="font-bold">E-mail 2:</span>
+            <div className="w-1/2 p-2">
+              <span className="font-bold">E-mail 2:</span> {lead?.email2 || ''}
             </div>
           </div>
 
-          <div className="flex">
-            <div className="flex-1 border-r border-black p-1">
+          <div className="flex border-b border-black text-[11px]">
+            <div className="w-1/2 border-r border-black p-2">
               <span className="font-bold">Tema da Festa:</span>{' '}
               {contract.theme_notes || 'A definir'}
             </div>
-            <div className="flex-1 p-1">
+            <div className="w-1/2 p-2">
               <span className="font-bold">Fornecedor:</span>{' '}
               {contract.expand?.decoration_supplier_id?.name || 'Vem de fora'}
             </div>
           </div>
-        </div>
 
-        <p className="text-[10px] text-red-600 font-bold mb-2 text-justify leading-tight">
-          A mesa de decoração é um serviço prestado por empresas terceirizadas, sendo necessário
-          constatar a sua disponibilidade, havendo diferentes valores adicionais de acordo com tema
-          e a empresa escolhida.
-        </p>
-
-        <div className="border border-black flex mb-2">
-          <div className="w-1/4 border-r border-black p-1">
-            <span className="font-bold block">BOLO:</span>
-            {contract.cake_notes || 'N/A'}
+          <div className="p-1 border-b border-black text-[10px] text-red-600 font-bold leading-tight text-center">
+            A mesa de decoração é um serviço prestado por empresas terceirizadas, sendo necessário
+            constatar a sua disponibilidade, havendo diferentes valores adicionais de acordo com
+            tema e a empresa escolhida.
           </div>
-          <div className="w-1/4 border-r border-black p-1">
-            <span className="font-bold block">FESTA COM ALCOOL:</span>
-            {contract.has_alcohol ? 'Sim' : 'Não'}
+
+          <div className="flex border-b border-black text-[10px]">
+            <div className="w-1/5 border-r border-black p-2">
+              <span className="font-bold uppercase block mb-1">Bolo:</span>{' '}
+              {contract.cake_notes || 'N/A'}
+            </div>
+            <div className="w-1/5 border-r border-black p-2">
+              <span className="font-bold uppercase block mb-1">Festa com Alcool:</span>{' '}
+              {contract.has_alcohol ? 'Sim' : 'Não'}
+            </div>
+            <div className="w-3/5 p-2">
+              <span className="font-bold uppercase block mb-1">Almoço ou Jantar:</span>{' '}
+              {contract.expand?.menu_id?.name || ''}{' '}
+              {contract.expand?.menu_id?.description
+                ? `- ${contract.expand.menu_id.description}`
+                : ''}
+            </div>
           </div>
-          <div className="w-2/4 p-1">
-            <span className="font-bold block">ALMOÇO OU JANTAR:</span>
-            {menu?.name}
+
+          <div className="border-b border-black p-2 text-[11px]">
+            <span className="font-bold">Observação:</span>{' '}
+            {contract.notes || contract.payment_notes || 'Nenhuma observação.'}
+          </div>
+
+          <div className="p-2 text-[11px]">
+            <span className="font-bold">Cortesias:</span>{' '}
+            {contract.courtesies || 'Nenhuma cortesia registrada.'}
           </div>
         </div>
 
-        <div className="border border-black p-1 mb-2">
-          <span className="font-bold">Observação:</span>{' '}
-          {contract.notes || contract.payment_notes || 'Nenhuma'}
-        </div>
+        <div className="font-bold mt-4 mb-2 text-[12px] uppercase">Dados do Pagamento</div>
 
-        <div className="border border-black p-1 mb-4">
-          <span className="font-bold">Cortesias:</span> {contract.courtesies || 'Nenhuma'}
-        </div>
-
-        {contract.items_breakdown && contract.items_breakdown.length > 0 && (
-          <>
-            <h2 className="font-bold mb-1">COMPOSIÇÃO DO VALOR</h2>
-            <table className="w-full border-collapse border border-black text-center mb-2">
-              <thead>
-                <tr>
-                  <th className="border border-black p-1 w-1/2">Item</th>
-                  <th className="border border-black p-1 w-1/4">Status</th>
-                  <th className="border border-black p-1 w-1/4">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contract.items_breakdown.map((item: any, idx: number) => (
-                  <tr key={idx}>
-                    <td className="border border-black p-1">{item.name}</td>
-                    <td className="border border-black p-1">{item.status}</td>
-                    <td className="border border-black p-1">{formatCurrency(item.value)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        <h2 className="font-bold mb-1">DADOS DO PAGAMENTO</h2>
-        <div className="border border-black flex mb-2 font-bold bg-gray-50 print:bg-white">
-          <div className="flex-1 border-r border-black p-2">
+        <div className="flex border border-black mb-2 text-[11px] bg-gray-50 print:bg-white">
+          <div className="w-1/2 border-r border-black p-2 font-bold">
             TOTAL: {formatCurrency(contract.total_value)}
           </div>
-          <div className="flex-1 p-2">
-            TIPO / FORMA DE PAGAMENTO (Previsto): {contract.payment_method}
+          <div className="w-1/2 p-2 font-bold">
+            TIPO / FORMA DE PAGAMENTO (Previsto): {contract.payment_method || 'A combinar'}
           </div>
         </div>
 
-        <p className="text-[10px] mb-2 text-justify leading-tight">
+        <p className="text-[10px] text-justify leading-tight mb-2">
           Parcelamento direto com a Contratada em dinheiro ou através de depósitos bancários,
           deverão ser efetuados mensalmente, no vencimento combinado. O contrato deverá ser quitado
           em sua forma integral com 10 dias de antecedência de sua realização.{' '}
@@ -219,52 +231,68 @@ export default function ContractPrint() {
           neste contrato. A forma de pagamento fica acordada da seguinte forma:
         </p>
 
-        <table className="w-full border-collapse border border-black text-center mb-2">
-          <thead>
-            <tr>
-              <th className="border border-black p-1 w-1/4">Tipo</th>
-              <th className="border border-black p-1 w-1/4">Valor</th>
-              <th className="border border-black p-1 w-1/4">Data</th>
-              <th className="border border-black p-1 w-1/4">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payments.map((p: any, idx: number) => (
-              <tr key={p.id || idx}>
-                <td className="border border-black p-1">
-                  {p.payment_method || contract.payment_method}
-                </td>
-                <td className="border border-black p-1">{formatCurrency(p.amount)}</td>
-                <td className="border border-black p-1">{formatDate(p.due_date)}</td>
-                <td className="border border-black p-1">
-                  {p.status === 'Pending' ? 'Pendente' : 'Pago'}
-                </td>
+        <div className="border border-black">
+          <table className="w-full border-collapse text-center text-[11px]">
+            <thead>
+              <tr className="font-bold border-b border-black bg-gray-50 print:bg-white">
+                <th className="border-r border-black p-1.5 w-1/4">Tipo</th>
+                <th className="border-r border-black p-1.5 w-1/4">Valor</th>
+                <th className="border-r border-black p-1.5 w-1/4">Data</th>
+                <th className="p-1.5 w-1/4">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {payments.map((p: any, idx: number) => (
+                <tr
+                  key={p.id || idx}
+                  className={idx < payments.length - 1 ? 'border-b border-black' : ''}
+                >
+                  <td className="border-r border-black p-1.5">
+                    {p.payment_method || contract.payment_method}
+                  </td>
+                  <td className="border-r border-black p-1.5">{formatCurrency(p.amount)}</td>
+                  <td className="border-r border-black p-1.5">{formatDate(p.due_date)}</td>
+                  <td className="p-1.5">
+                    {p.status === 'Pending' ? 'Pendente' : p.status === 'Paid' ? 'Pago' : p.status}
+                  </td>
+                </tr>
+              ))}
+              {payments.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-2 text-gray-500">
+                    Nenhuma parcela registrada.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="border border-black text-center p-2 mb-4 text-[10px] leading-tight bg-gray-50 print:bg-white">
-          <strong className="block mb-1">Dados Bancários para depósitos</strong>
+        <div className="border border-black border-t-0 text-center p-2 mb-4 text-[10px] leading-tight bg-gray-50 print:bg-white">
+          <strong className="block mb-1 text-[11px]">Dados Bancários para depósitos</strong>
           {contract.bank_details ? (
             <div
               dangerouslySetInnerHTML={{ __html: contract.bank_details.replace(/\n/g, '<br />') }}
             />
           ) : (
             <>
-              Banco do Brasil: Ag.: 0300-X C/C.: 127722-7 | Banco Itaú: Ag.: 7646 C/C.: 55443-1 |
-              Banco Santander: Ag.: 0915 C/C.: 13000535-8
+              <strong>Banco do Brasil:</strong> Ag.: 0300-X C/C.: 127722-7 |{' '}
+              <strong>Banco Itaú:</strong> Ag.: 7646 C/C.: 55443-1 |{' '}
+              <strong>Banco Santander:</strong> Ag.: 0915 C/C.: 13000535-8
               <br />
-              PIX CNPJ 10.368.886/0001-84 | Tribo da Folia Festas e Eventos Eireli - CNPJ
-              10.368.886/0001-84
+              <strong>PIX CNPJ 10.368.886/0001-84</strong> | Tribo da Folia Festas e Eventos Eireli
+              - CNPJ 10.368.886/0001-84
               <br />
-              OBS: Após efetuar transferência envie comprovante para:{' '}
-              <u>festa@tribodafolia.com.br</u> ou WhatsApp: (11) 99518-6838
+              <strong>
+                OBS: Após efetuar transferência envie comprovante para:{' '}
+                <u className="text-blue-600">festa@tribodafolia.com.br</u> ou WhatsApp: (11)
+                99518-6838
+              </strong>
             </>
           )}
         </div>
 
-        <div className="text-[9px] text-justify space-y-2 leading-tight mt-4">
+        <div className="text-[10px] text-justify space-y-2 leading-tight mt-6">
           <p>
             Pelo presente instrumento, os signatários: Contratante e a Contratada, têm entre si,
             justo e acordado as seguintes normas de contrato, as quais mutuamente outorgam e aceitam
@@ -278,45 +306,30 @@ export default function ContractPrint() {
             {lead?.address_zip || '_________'} - {lead?.address_city || '_________________'}.
           </p>
           <p>
-            <strong>CLÁUSULA PRIMEIRA - DO OBJETO:</strong> A Contratada se obriga a reservar o seu
-            salão para {contract.guest_count} convidados, no dia {formatDate(contract.event_date)}{' '}
-            pelo valor de: {formatCurrency(contract.total_value)} pelo período de 4 horas (
-            {contract.event_start_time} às {contract.event_end_time}). A contratada disponibiliza 30
-            minutos de tolerância para desocupação do espaço, sem serviços de buffet. Ultrapassado
-            este período, será cobrado o valor integral de uma hora extra (25% do valor do
-            contrato). A contratada prestará os serviços conforme Cardápio escolhido, que integra
-            este contrato, podendo substituir itens por motivo de força maior. Crianças até 5 anos
-            (incompletos) não pagam.
+            A Contratada se obriga a reservar o seu salão para Nº .: {contract.guest_count}{' '}
+            convidados, no dia {formatDate(contract.event_date)} pelo valor de:{' '}
+            {formatCurrency(contract.total_value)} pelo período de 4 horas (
+            {contract.event_start_time} | {contract.event_end_time}), a contratada disponibiliza 30
+            minutos de tolerância, este período extra serve para a desocupação do espaço, não mais
+            havendo serviços de buffet. Ultrapassado o período de 30 minutos, será cobrado o valor
+            integral da hora, tendo com base de cálculo um quarto do valor do contrato. A contratada
+            garante a qualidade de seus serviços, salvo se a quantidade de convidados presente em
+            lista, exceda 15% da quantidade contratada, qualquer alteração no contrato dependerá da
+            concordância e da disponibilidade em agenda, podendo implicar em alteração no valor
+            pactuado. A contratada prestará os serviços de acordo com o Cardápio escolhido, o qual
+            fica fazendo parte integrante deste contrato, podendo excluir ou substituir a qualquer
+            momento seus itens sem qualquer aviso prévio. Crianças até 5 anos não pagam.
           </p>
-          <p>
-            <strong>CLÁUSULA SEGUNDA - CANCELAMENTO:</strong> Em caso de desistência ou rescisão por
-            parte da Contratante, não haverá devolução dos valores pagos, que serão retidos a título
-            de multa rescisória e ressarcimento por perdas e danos (reserva de data). Caso o evento
-            seja remarcado, haverá incidência de taxa de alteração de data no valor de 20% do
-            contrato, mediante disponibilidade da Contratada.
-          </p>
-          <p>
-            <strong>CLÁUSULA TERCEIRA - REGRAS E SEGURANÇA:</strong> É expressamente proibido colar,
-            perfurar ou fixar qualquer tipo de material nas paredes, móveis e equipamentos do salão.
-            Danos causados por convidados ou equipe terceirizada contratada pela Contratante serão
-            cobrados integralmente. A Contratada não se responsabiliza por objetos deixados no
-            local.
-          </p>
-          <p>
-            <strong>CLÁUSULA QUARTA - USO DE IMAGEM:</strong> A Contratante autoriza, a título
-            gratuito, o uso de imagens (fotos e vídeos) realizadas durante o evento nas redes
-            sociais e materiais promocionais da Contratada. Caso não deseje, a Contratante deverá
-            comunicar por escrito antes da realização do evento.
-          </p>
-          <div className="flex justify-between pt-12 pb-4 px-8 mt-8">
-            <div className="text-center w-[40%] border-t border-black pt-1">
-              <p className="font-bold">{lead?.name}</p>
-              <p>Contratante (CPF: {lead?.cpf || '_________________'})</p>
-            </div>
-            <div className="text-center w-[40%] border-t border-black pt-1">
-              <p className="font-bold">Tribo da Folia Festas e Eventos Eireli</p>
-              <p>Contratada (CNPJ: 10.368.886/0001-84)</p>
-            </div>
+        </div>
+
+        <div className="flex justify-between pt-16 pb-4 px-8 mt-8">
+          <div className="text-center w-[40%] border-t border-black pt-1">
+            <p className="font-bold">{lead?.name}</p>
+            <p>Contratante (CPF: {lead?.cpf || '_________________'})</p>
+          </div>
+          <div className="text-center w-[40%] border-t border-black pt-1">
+            <p className="font-bold">Tribo da Folia Festas e Eventos Eireli</p>
+            <p>Contratada (CNPJ: 10.368.886/0001-84)</p>
           </div>
         </div>
       </div>
