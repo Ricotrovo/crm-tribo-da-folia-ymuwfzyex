@@ -2,6 +2,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { EventItemsSection } from '@/components/events/EventItemsSection'
+import { EventDishesSection } from '@/components/events/EventDishesSection'
 import { ArrowLeft, Calendar, Users, MapPin } from 'lucide-react'
 
 export default function EventDetails() {
@@ -57,6 +58,10 @@ export default function EventDetails() {
       <div className="space-y-4 bg-card border p-6 rounded-lg shadow-sm">
         <h2 className="text-2xl font-bold mb-4">Itens e Serviços Contratados</h2>
         <EventItemsSection eventId={event.id} />
+      </div>
+
+      <div className="space-y-4 bg-card border p-6 rounded-lg shadow-sm mt-6">
+        <EventDishesSection eventId={event.id} guestCount={event.guests || 0} />
       </div>
     </div>
   )

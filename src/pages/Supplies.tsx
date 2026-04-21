@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ItemsTab } from '@/components/supplies/ItemsTab'
 import { SuppliersTab } from '@/components/supplies/SuppliersTab'
 import { CategoriesTab } from '@/components/supplies/CategoriesTab'
+import { DishesTab } from '@/components/supplies/DishesTab'
 
 export default function Supplies() {
   return (
@@ -14,8 +15,9 @@ export default function Supplies() {
       </div>
 
       <Tabs defaultValue="items" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="items">Itens e Serviços</TabsTrigger>
+          <TabsTrigger value="dishes">Pratos e Receitas</TabsTrigger>
           <TabsTrigger value="suppliers">Fornecedores</TabsTrigger>
           <TabsTrigger value="categories">Categorias</TabsTrigger>
         </TabsList>
@@ -32,6 +34,11 @@ export default function Supplies() {
         <TabsContent value="categories">
           <div className="bg-card border rounded-lg p-6 shadow-sm">
             <CategoriesTab />
+          </div>
+        </TabsContent>
+        <TabsContent value="dishes">
+          <div className="bg-card border rounded-lg p-6 shadow-sm">
+            <DishesTab />
           </div>
         </TabsContent>
       </Tabs>
