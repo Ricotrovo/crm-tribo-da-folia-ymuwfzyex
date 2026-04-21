@@ -27,28 +27,30 @@ export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoa
   const [editingContract, setEditingContract] = useState<any>(null)
 
   const handleCancelContract = async (contract: any) => {
-    if (!confirm('Deseja realmente cancelar este contrato? A data será liberada na agenda.')) return;
+    if (!confirm('Deseja realmente cancelar este contrato? A data será liberada na agenda.')) return
     try {
-      await updateContract(contract.id, { status: 'canceled' });
-      const events = await pb.collection('events').getFullList({ filter: `contract_id = '${contract.id}'` });
+      await updateContract(contract.id, { status: 'canceled' })
+      const events = await pb
+        .collection('events')
+        .getFullList({ filter: `contract_id = '${contract.id}'` })
       for (const ev of events) {
-         await pb.collection('events').update(ev.id, { status: 'canceled' });
+        await pb.collection('events').update(ev.id, { status: 'canceled' })
       }
-      toast.success('Contrato cancelado com sucesso.');
-      window.location.reload();
+      toast.success('Contrato cancelado com sucesso.')
+      window.location.reload()
     } catch (e) {
-      toast.error('Erro ao cancelar contrato.');
+      toast.error('Erro ao cancelar contrato.')
     }
   }
 
   const handleDelete = async (contract: any) => {
-    if (!confirm('Deseja realmente excluir este contrato?')) return;
+    if (!confirm('Deseja realmente excluir este contrato?')) return
     try {
-      await pb.collection('contracts').delete(contract.id);
-      toast.success('Contrato excluído com sucesso.');
-      window.location.reload();
+      await pb.collection('contracts').delete(contract.id)
+      toast.success('Contrato excluído com sucesso.')
+      window.location.reload()
     } catch (e) {
-      toast.error('Erro ao excluir contrato.');
+      toast.error('Erro ao excluir contrato.')
     }
   }
 
@@ -103,68 +105,83 @@ export function ContractList({ contracts, isLoading }: { contracts: any[]; isLoa
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Contract #</TableHead>
-          <TableHead>Client</TableHead>
-          <TableHead>Event Date</TableHead>
-          <TableHead>Value</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {contracts.map((contract) => (
-          <TableRow key={contract.id}>
-            <TableCell className="font-medium text-primary">#{contract.contract_number}</TableCell>
-            <TableCell>{contract.clients?.name}</TableCell>
-            <TableCell>{formatDate(contract.events?.date)}</TableCell>
-            <TableCell>R$ {contract.total_value?.toLocaleString()}</TableCell>
-            <TableCell>
-              <Badge className={`${getStatusColor(contract.status)} text-white border-transparent uppercase`}>
-                {contract.status || 'DRAFT'}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="h-8 w-8 p-0">
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setEditingContract(contract)}>
-                    <Edit className="mr-2 h-4 w-4" /> Alterar Contrato
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport(contract)}>
-                    <Download className="mr-2 h-4 w-4" /> Download PDF
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleCancelContract(contract)} disabled={contract.status === 'canceled'}>
-                    <XCircle className="mr-2 h-4 w-4" /> Cancelar Contrato
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDelete(contract)} disabled={contract.status !== 'draft'}>
-                    <Trash className="mr-2 h-4 w-4 text-red-500" /> <span className="text-red-500">Excluir</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Contract #</TableHead>
+            <TableHead>Client</TableHead>
+            <TableHead>Event Date</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {contracts.map((contract) => (
+            <TableRow key={contract.id}>
+              <TableCell className="font-medium text-primary">
+                #{contract.contract_number}
+              </TableCell>
+              <TableCell>{contract.clients?.name}</TableCell>
+              <TableCell>{formatDate(contract.events?.date)}</TableCell>
+              <TableCell>R$ {contract.total_value?.toLocaleString()}</TableCell>
+              <TableCell>
+                <Badge
+                  className={`${getStatusColor(contract.status)} text-white border-transparent uppercase`}
+                >
+                  {contract.status || 'DRAFT'}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setEditingContract(contract)}>
+                      <Edit className="mr-2 h-4 w-4" /> Alterar Contrato
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport(contract)}>
+                      <Download className="mr-2 h-4 w-4" /> Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => handleCancelContract(contract)}
+                      disabled={contract.status === 'canceled'}
+                    >
+                      <XCircle className="mr-2 h-4 w-4" /> Cancelar Contrato
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => handleDelete(contract)}
+                      disabled={contract.status !== 'draft'}
+                    >
+                      <Trash className="mr-2 h-4 w-4 text-red-500" />{' '}
+                      <span className="text-red-500">Excluir</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
 
-    {editingContract && (
-      <EditContractSheet 
-        contract={editingContract} 
-        open={!!editingContract} 
-        onOpenChange={(o: boolean) => !o && setEditingContract(null)}
-        onSuccess={() => { setEditingContract(null); window.location.reload(); }}
-      />
-    )}
+      {editingContract && (
+        <EditContractSheet
+          contract={editingContract}
+          open={!!editingContract}
+          onOpenChange={(o: boolean) => !o && setEditingContract(null)}
+          onSuccess={() => {
+            setEditingContract(null)
+            window.location.reload()
+          }}
+        />
+      )}
     </>
   )
 }
