@@ -38,7 +38,7 @@ const schema = z.object({
   type: z.enum(['product', 'service']),
   category_id: z.string().optional(),
   supplier_id: z.string().optional(),
-  unit: z.enum(['un', 'box', 'package', 'kg', 'liter']).optional(),
+  unit: z.enum(['un', 'box', 'package', 'kg', 'liter', 'hundred']).optional(),
   color: z.string().optional(),
   size: z.string().optional(),
   base_price: z.coerce.number().min(0).optional(),
@@ -125,7 +125,6 @@ export function ItemsTab() {
         data.stock_quantity = 0
         data.color = ''
         data.size = ''
-        data.unit = ''
       }
       if (editingId) {
         await pb.collection('items').update(editingId, data)
@@ -233,43 +232,46 @@ export function ItemsTab() {
                 </div>
               </div>
 
-              {isProduct && (
-                <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-md border">
-                  <div className="space-y-2">
-                    <Label>Unidade</Label>
-                    <Controller
-                      control={form.control}
-                      name="unit"
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="un">Un</SelectItem>
-                            <SelectItem value="box">Caixa</SelectItem>
-                            <SelectItem value="package">Pct</SelectItem>
-                            <SelectItem value="kg">Kg</SelectItem>
-                            <SelectItem value="liter">Litro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Cor</Label>
-                    <Input {...form.register('color')} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Tam.</Label>
-                    <Input {...form.register('size')} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Estoque</Label>
-                    <Input type="number" {...form.register('stock_quantity')} />
-                  </div>
+              <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-md border">
+                <div className="space-y-2">
+                  <Label>Unidade</Label>
+                  <Controller
+                    control={form.control}
+                    name="unit"
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="un">Un</SelectItem>
+                          <SelectItem value="box">Caixa</SelectItem>
+                          <SelectItem value="package">Pct</SelectItem>
+                          <SelectItem value="kg">Kg</SelectItem>
+                          <SelectItem value="liter">Litro</SelectItem>
+                          <SelectItem value="hundred">Cento</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
-              )}
+                {isProduct && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Cor</Label>
+                      <Input {...form.register('color')} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tam.</Label>
+                      <Input {...form.register('size')} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Estoque</Label>
+                      <Input type="number" {...form.register('stock_quantity')} />
+                    </div>
+                  </>
+                )}
+              </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -324,11 +326,17 @@ export function ItemsTab() {
                     {i.size}
                   </Badge>
                 )}
+                {i.unit && (
+                  <Badge variant="secondary" className="ml-2">
+                    {i.unit === 'hundred' ? 'Cento' : i.unit}
+                  </Badge>
+                )}
               </TableCell>
               <TableCell>{i.type === 'product' ? 'Produto' : 'Serviço'}</TableCell>
               <TableCell>{i.expand?.supplier_id?.name || '-'}</TableCell>
               <TableCell className="text-right font-medium text-green-600">
-                {(i.sale_price || i.base_price || 0).toFixed(2)}
+                {(i.sale_price || i.base_price || 0).toFixed(2)}{' '}
+                {i.unit ? `p/ ${i.unit === 'hundred' ? 'cento' : i.unit}` : ''}
               </TableCell>
               <TableCell className="text-right">{i.included_quantity || 0}</TableCell>
               <TableCell className="text-right">

@@ -37,7 +37,7 @@ import { FileText, Receipt, Trash2 } from 'lucide-react'
 
 const schema = z.object({
   item_id: z.string().min(1, 'Item é obrigatório'),
-  quantity: z.coerce.number().min(1, 'Quantidade inválida'),
+  quantity: z.coerce.number().min(0.01, 'Quantidade inválida'),
   unit_price: z.coerce.number().min(0, 'Valor inválido'),
   notes: z.string().optional(),
   deduct_stock: z.boolean().default(false),
@@ -182,8 +182,12 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Quantidade Total</Label>
-                  <Input type="number" min={1} {...form.register('quantity')} />
+                  <Label>
+                    Quantidade Total{' '}
+                    {selectedItem?.unit &&
+                      `(${selectedItem.unit === 'hundred' ? 'centos' : selectedItem.unit})`}
+                  </Label>
+                  <Input type="number" step="0.01" min={0.01} {...form.register('quantity')} />
                 </div>
                 <div className="space-y-2">
                   <Label>Preço Unitário (R$)</Label>
@@ -250,26 +254,32 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {eventItems.map((ei) => (
-              <TableRow key={ei.id}>
-                <TableCell className="font-medium">
-                  {ei.expand?.item_id?.name}
-                  {ei.notes && (
-                    <span className="block text-xs text-muted-foreground">{ei.notes}</span>
-                  )}
-                </TableCell>
-                <TableCell>{ei.expand?.supplier_id?.name}</TableCell>
-                <TableCell className="text-right">{ei.quantity}</TableCell>
-                <TableCell className="text-right font-medium">
-                  R$ {(ei.total_price || 0).toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(ei.id)}>
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {eventItems.map((ei) => {
+              const unit = ei.expand?.item_id?.unit
+              const unitLabel = unit === 'hundred' ? 'centos' : unit
+              return (
+                <TableRow key={ei.id}>
+                  <TableCell className="font-medium">
+                    {ei.expand?.item_id?.name}
+                    {ei.notes && (
+                      <span className="block text-xs text-muted-foreground">{ei.notes}</span>
+                    )}
+                  </TableCell>
+                  <TableCell>{ei.expand?.supplier_id?.name}</TableCell>
+                  <TableCell className="text-right">
+                    {ei.quantity} {unitLabel}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    R$ {(ei.total_price || 0).toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(ei.id)}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
             {eventItems.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
@@ -292,15 +302,22 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
                 </p>
               </div>
               <div className="flex-1 space-y-2">
-                {group.items.map((ei: any) => (
-                  <div key={ei.id} className="flex justify-between items-center text-sm">
-                    <span className="flex-1">
-                      {ei.expand?.item_id?.name}{' '}
-                      <span className="text-muted-foreground">(x{ei.quantity})</span>
-                    </span>
-                    <span className="font-medium">R$ {(ei.total_price || 0).toFixed(2)}</span>
-                  </div>
-                ))}
+                {group.items.map((ei: any) => {
+                  const unit = ei.expand?.item_id?.unit
+                  const unitLabel = unit === 'hundred' ? 'centos' : unit || 'un'
+                  return (
+                    <div key={ei.id} className="flex justify-between items-center text-sm">
+                      <span className="flex-1">
+                        {ei.expand?.item_id?.name}{' '}
+                        <span className="text-muted-foreground">
+                          ({ei.quantity} {unitLabel} - R$ {(ei.unit_price || 0).toFixed(2)}/
+                          {unitLabel})
+                        </span>
+                      </span>
+                      <span className="font-medium">R$ {(ei.total_price || 0).toFixed(2)}</span>
+                    </div>
+                  )
+                })}
               </div>
               <div className="border-t pt-3 mt-4 flex justify-between items-center">
                 <span className="font-bold">Total a Pagar:</span>

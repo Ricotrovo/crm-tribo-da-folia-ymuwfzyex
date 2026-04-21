@@ -30,6 +30,7 @@ import * as z from 'zod'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
+import { Pencil, Trash2 } from 'lucide-react'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -39,12 +40,29 @@ const schema = z.object({
 export function CategoriesTab() {
   const [categories, setCategories] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const form = useForm({
     resolver: zodResolver(schema),
     defaultValues: { name: '', type: 'product' as const },
   })
+
+  const handleEdit = (category: any) => {
+    form.reset({ name: category.name, type: category.type })
+    setEditingId(category.id)
+    setOpen(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir esta categoria? Isso pode afetar itens vinculados a ela.')) return
+    try {
+      await pb.collection('item_categories').delete(id)
+      toast({ title: 'Sucesso', description: 'Categoria excluída.' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
 
   const loadData = async () => {
     const res = await pb.collection('item_categories').getFullList()
@@ -60,10 +78,16 @@ export function CategoriesTab() {
 
   const onSubmit = async (data: any) => {
     try {
-      await pb.collection('item_categories').create(data)
+      if (editingId) {
+        await pb.collection('item_categories').update(editingId, data)
+        toast({ title: 'Sucesso', description: 'Categoria atualizada' })
+      } else {
+        await pb.collection('item_categories').create(data)
+        toast({ title: 'Sucesso', description: 'Categoria criada' })
+      }
       setOpen(false)
+      setEditingId(null)
       form.reset()
-      toast({ title: 'Sucesso', description: 'Categoria criada' })
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
@@ -73,13 +97,22 @@ export function CategoriesTab() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Gestão de Categorias</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            setOpen(o)
+            if (!o) {
+              setEditingId(null)
+              form.reset()
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>Nova Categoria</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nova Categoria</DialogTitle>
+              <DialogTitle>{editingId ? 'Editar Categoria' : 'Nova Categoria'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
               <div className="space-y-2">
@@ -116,6 +149,7 @@ export function CategoriesTab() {
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Tipo</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -123,11 +157,19 @@ export function CategoriesTab() {
             <TableRow key={c.id}>
               <TableCell>{c.name}</TableCell>
               <TableCell>{c.type === 'product' ? 'Produto' : 'Serviço'}</TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="icon" onClick={() => handleEdit(c)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
           {categories.length === 0 && (
             <TableRow>
-              <TableCell colSpan={2} className="text-center text-muted-foreground py-4">
+              <TableCell colSpan={3} className="text-center text-muted-foreground py-4">
                 Nenhuma categoria registrada.
               </TableCell>
             </TableRow>
