@@ -8,6 +8,10 @@ export interface Contract {
   contract_number: string
   event_date: string
   notes: string
+  items_breakdown?: any
+  payment_method?: string
+  installments?: number
+  decoration_supplier_id?: string
   created: string
   updated: string
 }
