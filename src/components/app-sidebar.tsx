@@ -6,6 +6,7 @@ import {
   FileText,
   CircleDollarSign,
   Package,
+  ShoppingCart,
   UserSquare2,
   LogOut,
 } from 'lucide-react'
@@ -35,6 +36,7 @@ export function AppSidebar() {
     { title: 'Financeiro', url: '/finance', icon: CircleDollarSign },
     { title: 'Gestão Humana', url: '/hr', icon: UserSquare2 },
     { title: 'Estoque', url: '/stock', icon: Package },
+    { title: 'Suprimentos', url: '/supplies', icon: ShoppingCart },
   ]
 
   return (
