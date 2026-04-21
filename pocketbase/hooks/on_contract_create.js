@@ -1,5 +1,20 @@
 onRecordCreate((e) => {
   const contract = e.record
+
+  if (!contract.getString('contract_number')) {
+    let maxNum = 7999
+    try {
+      const records = $app.findRecordsByFilter('contracts', "contract_number != ''", '', 100000, 0)
+      for (let r of records) {
+        const num = parseInt(r.getString('contract_number'), 10)
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num
+        }
+      }
+    } catch (_) {}
+    contract.set('contract_number', String(maxNum + 1))
+  }
+
   let eventDateStr = contract.getString('event_date')
   if (!eventDateStr) return e.next()
 

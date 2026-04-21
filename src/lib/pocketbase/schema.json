@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T22:34:29.268Z",
+  "generatedAt": "2026-04-21T22:38:04.259Z",
   "collections": [
     {
       "name": "users",
@@ -699,7 +699,9 @@
           "collectionRef": "menus"
         }
       ],
-      "indexes": []
+      "indexes": [
+        "CREATE UNIQUE INDEX `idx_contracts_number_unique` ON `contracts` (contract_number) WHERE contract_number != ''"
+      ]
     },
     {
       "name": "payments",

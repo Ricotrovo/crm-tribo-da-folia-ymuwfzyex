@@ -116,9 +116,9 @@ export default function Agenda() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nº Contrato</TableHead>
+                  <TableHead>Número do contrato</TableHead>
                   <TableHead>Salão Escolhido</TableHead>
-                  <TableHead>Data do Evento</TableHead>
+                  <TableHead>Data do evento</TableHead>
                   <TableHead>Horário</TableHead>
                   <TableHead>Cardápio</TableHead>
                   <TableHead>Contratante</TableHead>
