@@ -21,14 +21,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { CostBreakdown } from './CostBreakdown'
-import { supabase } from '@/lib/supabase/client'
+import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import { createContract } from '@/services/contracts'
 
 const formSchema = z.object({
   client_id: z.string().min(1, 'Required'),
   event_id: z.string().min(1, 'Required'),
-  menu: z.string().min(1, 'Required'),
+  menu_id: z.string().min(1, 'Required'),
   guests: z.coerce.number().min(1),
   photographer: z.boolean().default(false),
   decoration: z.boolean().default(false),
@@ -45,8 +45,9 @@ export function ContractForm({
   onSuccess: () => void
   onCancel: () => void
 }) {
-  const [clients, setClients] = useState<any[]>([])
+  const [leads, setLeads] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
+  const [menus, setMenus] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormValues>({
@@ -60,38 +61,85 @@ export function ContractForm({
   })
 
   useEffect(() => {
-    supabase
-      .from('clients')
-      .select('*')
-      .then(({ data }) => setClients(data || []))
-    supabase
-      .from('events')
-      .select('*, contracts(id)')
-      .then(({ data }) => {
-        setEvents((data || []).filter((e) => !e.contracts || e.contracts.length === 0))
-      })
+    pb.collection('leads').getFullList({ sort: '-created' }).then(setLeads)
+    pb.collection('events').getFullList({ sort: '-created' }).then(setEvents)
+    pb.collection('menus').getFullList({ sort: 'name' }).then(setMenus)
   }, [])
 
   const values = form.watch()
+  const selectedMenu = menus.find((m) => m.id === values.menu_id)
+  const selectedEvent = events.find((e) => e.id === values.event_id)
 
   const calculation = useMemo(() => {
-    const baseValue = values.menu === 'Premium' ? 3000 : 2000
-    const extraGuestsCount = Math.max(0, (values.guests || 50) - 50)
-    const extraGuestsValue = extraGuestsCount * (values.menu === 'Premium' ? 80 : 50)
+    let baseValue = 0
+    let extraGuestsValue = 0
+
+    if (selectedMenu && selectedEvent?.date) {
+      const [year, month, day] = selectedEvent.date.split(' ')[0].split('-').map(Number)
+      const localDate = new Date(year, month - 1, day)
+      const dayOfWeek = localDate.getDay()
+
+      if (selectedMenu.name.toLowerCase() === 'escolar') {
+        baseValue = selectedMenu.price_weekday || 4500
+      } else {
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+          baseValue = selectedMenu.price_weekend || 0
+        } else if (dayOfWeek === 5) {
+          baseValue = selectedMenu.price_holiday || 0
+        } else {
+          baseValue = selectedMenu.price_weekday || 0
+        }
+      }
+
+      const extraGuestsCount = Math.max(0, (values.guests || 50) - 50)
+      extraGuestsValue = extraGuestsCount * (selectedMenu.extra_guest_price_advance || 0)
+    }
+
     const optionalsValue = (values.photographer ? 500 : 0) + (values.decoration ? 300 : 0)
     const totalValue = baseValue + extraGuestsValue + optionalsValue
 
     return { baseValue, extraGuestsValue, optionalsValue, totalValue }
-  }, [values.menu, values.guests, values.photographer, values.decoration])
+  }, [selectedMenu, selectedEvent, values.guests, values.photographer, values.decoration])
 
   const onSubmit = async (data: FormValues) => {
+    if (selectedMenu?.name.toLowerCase() === 'escolar' && selectedEvent?.date) {
+      const [year, month, day] = selectedEvent.date.split(' ')[0].split('-').map(Number)
+      const localDate = new Date(year, month - 1, day)
+      const dayOfWeek = localDate.getDay()
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        toast.error('O pacote Escolar só é permitido de Segunda a Sexta-feira.')
+        return
+      }
+
+      if (selectedEvent.time) {
+        const [hours, minutes] = selectedEvent.time.split(':').map(Number)
+        const timeInMinutes = hours * 60 + (minutes || 0)
+        const startLimit = 14 * 60
+        const endLimit = 17 * 60
+        if (timeInMinutes < startLimit || timeInMinutes > endLimit) {
+          toast.error('O pacote Escolar só é permitido no horário de 14:00 às 17:00.')
+          return
+        }
+      }
+    }
+
     try {
       setIsSubmitting(true)
       await createContract({
-        client_id: data.client_id,
+        lead_id: data.client_id,
         total_value: calculation.totalValue,
-        notes: `Menu: ${data.menu}, Guests: ${data.guests}`,
+        notes: `Menu: ${selectedMenu?.name}, Guests: ${data.guests}, Event: ${selectedEvent?.title}`,
+        event_date: selectedEvent?.date || '',
+        contract_number: `CTR-${Date.now()}`,
       })
+
+      if (selectedEvent) {
+        await pb.collection('events').update(selectedEvent.id, {
+          menu: selectedMenu?.name,
+          guests: data.guests,
+        })
+      }
+
       toast.success('Contract and installments generated successfully!')
       onSuccess()
     } catch (error: any) {
@@ -110,7 +158,7 @@ export function ContractForm({
             name="client_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Client</FormLabel>
+                <FormLabel>Client / Lead</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -118,7 +166,7 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {clients.map((c) => (
+                    {leads.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
                       </SelectItem>
@@ -144,7 +192,7 @@ export function ContractForm({
                   <SelectContent>
                     {events.map((e) => (
                       <SelectItem key={e.id} value={e.id}>
-                        {e.title}
+                        {e.title} ({e.date ? e.date.split(' ')[0] : 'No date'})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -155,7 +203,7 @@ export function ContractForm({
           />
           <FormField
             control={form.control}
-            name="menu"
+            name="menu_id"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Menu</FormLabel>
@@ -166,8 +214,11 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Standard">Standard (R$ 2000)</SelectItem>
-                    <SelectItem value="Premium">Premium (R$ 3000)</SelectItem>
+                    {menus.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name} (Base R$ {m.price_weekend})
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

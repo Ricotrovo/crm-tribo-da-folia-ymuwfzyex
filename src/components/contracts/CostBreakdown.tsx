@@ -1,5 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import React from 'react'
 
 interface CostBreakdownProps {
   baseValue: number
@@ -15,26 +14,27 @@ export function CostBreakdown({
   totalValue,
 }: CostBreakdownProps) {
   return (
-    <Card className="bg-muted/30 border-dashed">
-      <CardContent className="pt-6 space-y-2">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Base Value (up to 50 guests)</span>
-          <span>R$ {baseValue.toFixed(2)}</span>
+    <div className="bg-muted p-4 rounded-lg space-y-2 text-sm mt-4">
+      <div className="flex justify-between items-center">
+        <span className="text-muted-foreground">Valor Base do Menu:</span>
+        <span className="font-medium">R$ {baseValue.toFixed(2)}</span>
+      </div>
+      {extraGuestsValue > 0 && (
+        <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
+          <span>Valor Excedente (Convidados Extras):</span>
+          <span className="font-medium">R$ {extraGuestsValue.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Extra Guests</span>
-          <span>R$ {extraGuestsValue.toFixed(2)}</span>
+      )}
+      {optionalsValue > 0 && (
+        <div className="flex justify-between items-center">
+          <span className="text-muted-foreground">Opcionais (Foto/Decoração):</span>
+          <span className="font-medium">R$ {optionalsValue.toFixed(2)}</span>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Optionals</span>
-          <span>R$ {optionalsValue.toFixed(2)}</span>
-        </div>
-        <Separator className="my-3" />
-        <div className="flex justify-between font-bold text-lg text-primary">
-          <span>Total</span>
-          <span>R$ {totalValue.toFixed(2)}</span>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+      <div className="flex justify-between items-center pt-2 border-t mt-2">
+        <span className="font-bold text-base">Valor Total do Contrato:</span>
+        <span className="font-bold text-base text-primary">R$ {totalValue.toFixed(2)}</span>
+      </div>
+    </div>
   )
 }

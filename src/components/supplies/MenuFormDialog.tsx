@@ -169,12 +169,21 @@ export function MenuFormDialog({ open, onOpenChange, menu, onSaved }: any) {
               onChange={(e) => {
                 const val = e.target.value
                 const num = Number(val)
-                setPrices({
-                  ...prices,
-                  we: val,
-                  wd: num ? Math.max(0, num - 1500).toString() : '',
-                  hol: num ? Math.max(0, num - 500).toString() : '',
-                })
+                if (name.toLowerCase() === 'escolar') {
+                  setPrices({
+                    ...prices,
+                    we: val,
+                    wd: val,
+                    hol: val,
+                  })
+                } else {
+                  setPrices({
+                    ...prices,
+                    we: val,
+                    wd: num ? Math.max(0, num - 1500).toString() : '',
+                    hol: num ? Math.max(0, num - 500).toString() : '',
+                  })
+                }
               }}
             />
           </div>
@@ -205,7 +214,7 @@ export function MenuFormDialog({ open, onOpenChange, menu, onSaved }: any) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Extra Antecipado (R$)</Label>
+            <Label>Valor Excedente Antecipado (R$)</Label>
             <Input
               type="number"
               step="0.01"
@@ -214,7 +223,7 @@ export function MenuFormDialog({ open, onOpenChange, menu, onSaved }: any) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Extra no Dia (R$)</Label>
+            <Label>Valor Excedente no Dia (R$)</Label>
             <Input
               type="number"
               step="0.01"
