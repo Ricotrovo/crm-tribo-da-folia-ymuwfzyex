@@ -8,6 +8,14 @@ export interface Contract {
   total_value: number
   contract_number: string
   event_date: string
+  event_start_time?: string
+  event_end_time?: string
+  guest_count?: number
+  salon?: string
+  has_alcohol?: boolean
+  courtesies?: string
+  bank_details?: string
+  menu_id?: string
   notes: string
   cake_notes?: string
   theme_notes?: string

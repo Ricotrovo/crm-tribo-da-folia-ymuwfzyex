@@ -14,6 +14,14 @@ interface ContractSheetProps {
 }
 
 export function ContractSheet({ open, onOpenChange, onSuccess }: ContractSheetProps) {
+  const handleSuccess = (contractId?: string) => {
+    onSuccess()
+    if (contractId) {
+      window.open(`/contracts/${contractId}/print`, '_blank')
+    }
+    onOpenChange(false)
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
@@ -23,7 +31,7 @@ export function ContractSheet({ open, onOpenChange, onSuccess }: ContractSheetPr
             Fill out the details to generate a sequential contract and calculate installments.
           </SheetDescription>
         </SheetHeader>
-        <ContractForm onSuccess={onSuccess} onCancel={() => onOpenChange(false)} />
+        <ContractForm onSuccess={handleSuccess} onCancel={() => onOpenChange(false)} />
       </SheetContent>
     </Sheet>
   )

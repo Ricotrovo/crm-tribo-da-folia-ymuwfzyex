@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -26,12 +25,21 @@ import pb from '@/lib/pocketbase/client'
 import { toast } from 'sonner'
 import { createContract } from '@/services/contracts'
 import { eventService } from '@/services/events'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const formSchema = z.object({
   client_id: z.string().min(1, 'Required'),
   birthday_person_id: z.string().optional().or(z.literal('')),
   event_date: z.string().min(1, 'Required'),
   start_time: z.string().min(1, 'Required'),
+  event_end_time: z.string().min(1, 'Required'),
   salon_selection: z.string().min(1, 'Required'),
   menu_id: z.string().min(1, 'Required'),
   guests: z.coerce.number().min(50, 'Minimum 50'),
@@ -44,6 +52,8 @@ const formSchema = z.object({
   photographer_courtesy: z.boolean().default(false),
   extra_decoration: z.boolean().default(false),
   extra_decoration_courtesy: z.boolean().default(false),
+  has_alcohol: z.boolean().default(false),
+  courtesies: z.string().optional(),
   installments: z.coerce.number().min(1).max(12),
   payment_method: z.string().min(1, 'Required'),
   payment_day: z
@@ -59,7 +69,7 @@ export function ContractForm({
   onSuccess,
   onCancel,
 }: {
-  onSuccess: () => void
+  onSuccess: (contractId?: string) => void
   onCancel: () => void
 }) {
   const [leads, setLeads] = useState<any[]>([])
@@ -67,6 +77,7 @@ export function ContractForm({
   const [menus, setMenus] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [previewInstallments, setPreviewInstallments] = useState<any[]>([])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -75,10 +86,12 @@ export function ContractForm({
       installments: 1,
       photographer: false,
       extra_decoration: false,
+      has_alcohol: false,
       client_id: '',
       birthday_person_id: '',
       menu_id: '',
       start_time: '',
+      event_end_time: '',
       salon_selection: '',
       payment_method: '',
       decoration_supplier_id: '',
@@ -87,6 +100,7 @@ export function ContractForm({
       cake_flavor: '',
       cake_notes: '',
       payment_notes: '',
+      courtesies: '',
     },
   })
 
@@ -140,7 +154,72 @@ export function ContractForm({
     return { baseValue, discount, extraGuestsValue, photoVal, decoVal, totalValue, values }
   }, [selectedMenu, values])
 
+  const ageAtParty = useMemo(() => {
+    if (!values.event_date || !values.birthday_person_id || values.birthday_person_id === 'none')
+      return null
+    const child = childrenList.find((c) => c.id === values.birthday_person_id)
+    if (!child || !child.birthday) return null
+
+    const b = new Date(child.birthday)
+    const p = new Date(values.event_date)
+    if (isNaN(b.getTime()) || isNaN(p.getTime())) return null
+
+    let age = p.getFullYear() - b.getFullYear()
+    const m = p.getMonth() - b.getMonth()
+    if (m < 0 || (m === 0 && p.getDate() < b.getDate())) {
+      age--
+    }
+    return Math.max(0, age)
+  }, [values.event_date, values.birthday_person_id, childrenList])
+
+  const handleGenerateInstallments = () => {
+    if (!calculation.totalValue || !values.installments || !values.event_date) {
+      toast.error('Preencha data, parcelas e verifique o valor antes de gerar.')
+      return
+    }
+
+    const eventDateObj = new Date(`${values.event_date}T12:00:00.000Z`)
+    const eventLimitDate = new Date(eventDateObj)
+    eventLimitDate.setDate(eventLimitDate.getDate() - 10)
+
+    const inst = []
+    const amountPerInst = calculation.totalValue / values.installments
+
+    for (let i = 0; i < values.installments; i++) {
+      let dueDate = new Date()
+      dueDate.setMonth(dueDate.getMonth() + i)
+
+      if (values.payment_day) {
+        const month = new Date().getMonth() + i
+        const year = new Date().getFullYear() + Math.floor(month / 12)
+        const adjustedMonth = month % 12
+        const maxDays = new Date(year, adjustedMonth + 1, 0).getDate()
+        dueDate = new Date(year, adjustedMonth, Math.min(values.payment_day, maxDays))
+      }
+
+      if (dueDate > eventLimitDate) {
+        dueDate = new Date(eventLimitDate)
+      }
+
+      const payoutDate = new Date(dueDate)
+      payoutDate.setDate(payoutDate.getDate() + (values.payment_method === 'Credit Card' ? 30 : 1))
+
+      inst.push({
+        amount: amountPerInst,
+        due_date: dueDate.toISOString(),
+        payout_date: payoutDate.toISOString(),
+        status: 'Pending',
+        payment_method: values.payment_method,
+      })
+    }
+    setPreviewInstallments(inst)
+  }
+
   const onSubmit = async (data: FormValues) => {
+    if (previewInstallments.length === 0) {
+      return toast.error('Gere o parcelamento primeiro.')
+    }
+
     const isEscolar = selectedMenu?.name.toLowerCase() === 'escolar'
     if (isEscolar) {
       const [year, month, day] = data.event_date.split('-').map(Number)
@@ -163,7 +242,6 @@ export function ContractForm({
         )
       }
 
-      const client = leads.find((l) => l.id === data.client_id)
       const itemsBreakdown = [
         { name: 'Base Menu', status: 'Charged', value: calculation.baseValue },
         ...(calculation.discount > 0
@@ -207,59 +285,28 @@ export function ContractForm({
         payment_method: data.payment_method,
         installments: data.installments,
         decoration_supplier_id: data.decoration_supplier_id || undefined,
+        event_start_time: data.start_time,
+        event_end_time: data.event_end_time,
+        guest_count: data.guests,
+        salon: data.salon_selection,
+        has_alcohol: data.has_alcohol,
+        courtesies: data.courtesies,
+        menu_id: data.menu_id,
       })
 
-      const eventRecord = await pb.collection('events').create({
-        title: `Party - ${client?.name}`,
-        date: `${data.event_date} 12:00:00.000Z`,
-        start_time: data.start_time,
-        salon_selection: data.salon_selection,
-        duration: 4,
-        guests: data.guests,
-        menu: selectedMenu?.name,
-        theme: data.theme,
-        cake_flavor: data.cake_flavor,
-        decoration_supplier_id: data.decoration_supplier_id || null,
-        client_name: client?.name,
-        status: 'confirmed',
-        contract_id: contractRecord.id,
-      })
-
-      const eventDateObj = new Date(`${data.event_date}T12:00:00.000Z`)
-      const eventLimitDate = new Date(eventDateObj)
-      eventLimitDate.setDate(eventLimitDate.getDate() - 10)
-
-      for (let i = 0; i < data.installments; i++) {
-        let dueDate = new Date()
-        dueDate.setMonth(dueDate.getMonth() + i)
-
-        if (data.payment_day) {
-          const month = new Date().getMonth() + i
-          const year = new Date().getFullYear() + Math.floor(month / 12)
-          const adjustedMonth = month % 12
-          const maxDays = new Date(year, adjustedMonth + 1, 0).getDate()
-          dueDate = new Date(year, adjustedMonth, Math.min(data.payment_day, maxDays))
-        }
-
-        if (dueDate > eventLimitDate) {
-          dueDate = new Date(eventLimitDate)
-        }
-
-        const payoutDate = new Date(dueDate)
-        payoutDate.setDate(payoutDate.getDate() + (data.payment_method === 'Credit Card' ? 30 : 1))
-
+      for (const inst of previewInstallments) {
         await pb.collection('payments').create({
           contract_id: contractRecord.id,
-          amount: calculation.totalValue / data.installments,
-          due_date: dueDate.toISOString(),
-          payout_date: payoutDate.toISOString(),
-          payment_method: data.payment_method,
-          status: 'Pending',
+          amount: inst.amount,
+          due_date: inst.due_date,
+          payout_date: inst.payout_date,
+          payment_method: inst.payment_method,
+          status: inst.status,
         })
       }
 
-      toast.success('Contract generated successfully!')
-      onSuccess()
+      toast.success('Contract generated successfully! Event confirmed automatically.')
+      onSuccess(contractRecord.id)
     } catch (error: any) {
       toast.error(error.message || 'Failed to create contract')
     } finally {
@@ -320,6 +367,11 @@ export function ContractForm({
                     ))}
                   </SelectContent>
                 </Select>
+                {ageAtParty !== null && (
+                  <p className="text-xs font-semibold text-primary mt-1">
+                    Age at Party: {ageAtParty}
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
@@ -337,31 +389,58 @@ export function ContractForm({
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="start_time"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Start Time</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || undefined}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="12:00">12:00 (Lunch)</SelectItem>
-                    <SelectItem value="12:30">12:30 (Lunch)</SelectItem>
-                    <SelectItem value="14:00">14:00 (Escolar)</SelectItem>
-                    <SelectItem value="19:00">19:00 (Dinner)</SelectItem>
-                    <SelectItem value="19:30">19:30 (Dinner)</SelectItem>
-                    <SelectItem value="20:00">20:00 (Dinner)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <FormField
+              control={form.control}
+              name="start_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Start Time</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Start" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="12:00">12:00</SelectItem>
+                      <SelectItem value="12:30">12:30</SelectItem>
+                      <SelectItem value="14:00">14:00</SelectItem>
+                      <SelectItem value="19:00">19:00</SelectItem>
+                      <SelectItem value="19:30">19:30</SelectItem>
+                      <SelectItem value="20:00">20:00</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="event_end_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End Time</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="End" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="16:00">16:00</SelectItem>
+                      <SelectItem value="16:30">16:30</SelectItem>
+                      <SelectItem value="18:00">18:00</SelectItem>
+                      <SelectItem value="23:00">23:00</SelectItem>
+                      <SelectItem value="23:30">23:30</SelectItem>
+                      <SelectItem value="00:00">00:00</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="salon_selection"
@@ -378,6 +457,7 @@ export function ContractForm({
                     <SelectItem value="Salon 1">Salon 1</SelectItem>
                     <SelectItem value="Salon 2">Salon 2</SelectItem>
                     <SelectItem value="Both">Both Salons</SelectItem>
+                    <SelectItem value="KidseTeensPremium">Kids e Teens Premium</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -437,7 +517,7 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="none">None / Vem de fora</SelectItem>
                     {suppliers.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
@@ -470,7 +550,7 @@ export function ContractForm({
             name="theme_notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Theme Observations</FormLabel>
+                <FormLabel>Observações do Tema</FormLabel>
                 <FormControl>
                   <Input placeholder="Details..." {...field} value={field.value || ''} />
                 </FormControl>
@@ -496,7 +576,7 @@ export function ContractForm({
             name="cake_notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cake Observations</FormLabel>
+                <FormLabel>Observações do Bolo</FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Dietary restrictions..."
@@ -573,6 +653,39 @@ export function ContractForm({
                 />
               )}
             </div>
+            <div className="space-y-2 mt-4 md:mt-0">
+              <FormField
+                control={form.control}
+                name="has_alcohol"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2 space-y-0">
+                    <FormControl>
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel className="cursor-pointer">Festa Com Álcool</FormLabel>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="space-y-2 mt-4 md:mt-0 col-span-1 md:col-span-2">
+              <FormField
+                control={form.control}
+                name="courtesies"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cortesias Descritivo</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: Tunel de LED, Sorvete..."
+                        {...field}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         </div>
 
@@ -622,6 +735,7 @@ export function ContractForm({
                     <SelectItem value="PIX">PIX</SelectItem>
                     <SelectItem value="Credit Card">Credit Card</SelectItem>
                     <SelectItem value="Bank Slip">Bank Slip</SelectItem>
+                    <SelectItem value="TransferenciaDeposito">Transferência/Depósito</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -651,7 +765,7 @@ export function ContractForm({
             name="payment_notes"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Payment Observations</FormLabel>
+                <FormLabel>Observações do Pagamento</FormLabel>
                 <FormControl>
                   <Input placeholder="Agreements..." {...field} value={field.value || ''} />
                 </FormControl>
@@ -659,6 +773,45 @@ export function ContractForm({
               </FormItem>
             )}
           />
+        </div>
+
+        <div className="bg-muted/50 p-4 rounded-lg border">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold">Payment Schedule</h3>
+            <Button type="button" variant="secondary" onClick={handleGenerateInstallments}>
+              Gerar Parcelas
+            </Button>
+          </div>
+
+          {previewInstallments.length > 0 && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Vencimento</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {previewInstallments.map((inst, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: 'BRL',
+                      }).format(inst.amount)}
+                    </TableCell>
+                    <TableCell>{new Date(inst.due_date).toLocaleDateString('pt-BR')}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {previewInstallments.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Clique em Gerar Parcelas para pré-visualizar o cronograma de pagamentos (Regra de
+              liquidação 10 dias antes do evento aplicada).
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-4">

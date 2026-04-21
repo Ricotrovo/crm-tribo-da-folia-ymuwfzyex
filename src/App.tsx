@@ -16,6 +16,7 @@ import Settings from './pages/Settings'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
+import ContractPrint from './pages/ContractPrint'
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth()
@@ -61,6 +62,7 @@ const App = () => (
             <Route path="/finance" element={<Finance />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
+          <Route path="/contracts/:id/print" element={<ContractPrint />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>

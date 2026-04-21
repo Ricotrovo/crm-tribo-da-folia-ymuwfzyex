@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T16:48:00.536Z",
+  "generatedAt": "2026-04-21T17:31:40.759Z",
   "collections": [
     {
       "name": "users",
@@ -647,6 +647,56 @@
           "type": "number",
           "required": false,
           "system": false
+        },
+        {
+          "name": "event_start_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "event_end_time",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "guest_count",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "salon",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Salon 1", "Salon 2", "Both", "KidseTeensPremium"]
+        },
+        {
+          "name": "has_alcohol",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "courtesies",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bank_details",
+          "type": "editor",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "menu_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "menus"
         }
       ],
       "indexes": []
