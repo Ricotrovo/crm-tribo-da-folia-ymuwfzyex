@@ -300,9 +300,9 @@ export function ContractForm({
       const contractRecord = await createContract({
         lead_id: data.client_id,
         birthday_person_id: data.birthday_person_id || undefined,
-        total_value: calculation.baseValueBeforeOvertime,
+        total_value: calculation.totalValue,
         duration: data.duration,
-        status: 'draft',
+        status: 'active',
         notes: `Theme: ${data.theme || '-'}`,
         cake_notes: data.cake_notes,
         theme_notes: data.theme_notes,

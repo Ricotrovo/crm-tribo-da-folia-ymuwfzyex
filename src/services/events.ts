@@ -25,7 +25,7 @@ export type EventRecord = {
 export const eventService = {
   async checkAvailability(date: string, startTime: string, salon: string): Promise<boolean> {
     const existingEvents = await pb.collection('events').getFullList({
-      filter: `date ~ '${date}'`,
+      filter: `date ~ '${date}' && status != 'canceled'`,
     })
 
     const isSameShift = (t1: string, t2: string) => {

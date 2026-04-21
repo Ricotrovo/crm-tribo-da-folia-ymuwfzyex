@@ -16,14 +16,6 @@ onRecordCreate((e) => {
     }
   }
 
-  let total = e.record.getFloat('total_value')
-
-  if (duration > 4) {
-    const extra = duration - 4
-    const overtime = extra * (total * 0.25)
-    e.record.set('total_value', total + overtime)
-  }
-
   e.next()
 }, 'contracts')
 
