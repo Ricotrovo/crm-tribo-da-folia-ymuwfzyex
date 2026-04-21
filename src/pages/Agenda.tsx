@@ -1,195 +1,200 @@
 import { useState, useEffect } from 'react'
-import { Calendar } from '@/components/ui/calendar'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { format, addMonths, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
-import { eventService, EventRecord } from '@/services/events'
 import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
-import { extractFieldErrors } from '@/lib/pocketbase/errors'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { ContractForm } from '@/components/contracts/ContractForm'
 
-const isPastDate = (d: Date) => {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const check = new Date(d)
-  check.setHours(0, 0, 0, 0)
-  return check < today
-}
-
-const formatDateForDb = (d: Date) => {
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}`
+interface ContractEvent {
+  id: string
+  contract_number: string
+  salon: string
+  event_date: string
+  event_start_time: string
+  total_value: number
+  expand?: {
+    lead_id?: { name: string }
+    menu_id?: { name: string }
+    payments_via_contract_id?: Array<{ amount: number; status: string }>
+  }
 }
 
 export default function Agenda() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
-  const [events, setEvents] = useState<EventRecord[]>([])
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [contracts, setContracts] = useState<ContractEvent[]>([])
   const [loading, setLoading] = useState(false)
-  const [isEventSheetOpen, setIsEventSheetOpen] = useState(false)
-  const [newEventTitle, setNewEventTitle] = useState('')
-  const [newEventSalon, setNewEventSalon] = useState('Premium')
+  const [isContractSheetOpen, setIsContractSheetOpen] = useState(false)
   const { toast } = useToast()
 
-  const loadEvents = async (d: Date) => {
+  const loadEvents = async (date: Date) => {
     setLoading(true)
     try {
-      const data = await eventService.getEventsByDate(formatDateForDb(d))
-      setEvents(data)
+      const start = format(startOfMonth(date), 'yyyy-MM-dd 00:00:00')
+      const end = format(endOfMonth(date), 'yyyy-MM-dd 23:59:59')
+
+      const data = await pb.collection('contracts').getFullList({
+        filter: `event_date >= '${start}' && event_date <= '${end}'`,
+        sort: 'event_date,event_start_time',
+        expand: 'lead_id,menu_id,payments_via_contract_id',
+      })
+      setContracts(data as unknown as ContractEvent[])
     } catch (error) {
-      toast({ title: 'Erro ao carregar eventos', variant: 'destructive' })
+      toast({ title: 'Erro ao carregar agenda', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (!date) return
-    loadEvents(date)
-  }, [date])
+    loadEvents(currentDate)
+  }, [currentDate])
 
-  useRealtime('events', () => {
-    if (date) loadEvents(date)
-  })
+  useRealtime('contracts', () => loadEvents(currentDate))
+  useRealtime('payments', () => loadEvents(currentDate))
 
-  const handleCreateEvent = async () => {
-    if (!date || !newEventTitle) return
-    try {
-      await pb.collection('events').create({
-        title: newEventTitle,
-        salon: newEventSalon,
-        date: formatDateForDb(date),
-      })
-      setIsEventSheetOpen(false)
-      setNewEventTitle('')
-      loadEvents(date)
-      toast({ title: 'Sucesso', description: 'Evento criado.' })
-    } catch (err) {
-      const fieldErrors = extractFieldErrors(err)
-      if (fieldErrors.title) {
-        toast({ title: 'Erro no título', description: fieldErrors.title, variant: 'destructive' })
-      } else {
-        toast({ title: 'Erro ao criar evento', variant: 'destructive' })
-      }
-    }
+  const handlePrevMonth = () => setCurrentDate((prev) => subMonths(prev, 1))
+  const handleNextMonth = () => setCurrentDate((prev) => addMonths(prev, 1))
+
+  const getSalonColor = (salon: string) => {
+    if (salon === 'Espaço Premium') return 'bg-blue-100 text-blue-800 border-blue-200'
+    if (salon === 'Espaço Kids&Teens') return 'bg-green-100 text-green-800 border-green-200'
+    if (salon === 'Ambos os Salões') return 'bg-purple-100 text-purple-800 border-purple-200'
+    return 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
-  const isPast = date ? isPastDate(date) : false
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
+
+  const calculatePaid = (payments: Array<{ amount: number; status: string }> = []) => {
+    return payments
+      .filter((p) => p.status.toLowerCase() === 'paid')
+      .reduce((sum, p) => sum + p.amount, 0)
+  }
 
   return (
     <div className="space-y-6 fade-in-up pb-12">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Agenda</h2>
-          <p className="text-muted-foreground">Gerencie seus eventos por data.</p>
+          <h2 className="text-3xl font-bold tracking-tight">Agenda de Festas</h2>
+          <p className="text-muted-foreground">Visão geral de eventos e contratos.</p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button className="w-full sm:w-auto" onClick={() => setIsEventSheetOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Novo Evento
-          </Button>
-        </div>
+        <Button onClick={() => setIsContractSheetOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Novo Evento
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-4 xl:col-span-3 space-y-6 lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="pt-6 flex justify-center">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={(d) => d && setDate(d)}
-                className="rounded-md bg-card"
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-8 xl:col-span-9">
-          <Card className="min-h-[600px] shadow-sm border-muted">
-            <CardHeader className="border-b bg-muted/20 pb-4">
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    Eventos de {date?.toLocaleDateString('pt-BR')}
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {loading ? 'Carregando eventos...' : `${events.length} evento(s) agendado(s).`}
-                  </CardDescription>
-                </div>
-                {isPast && (
-                  <Badge variant="destructive" className="animate-fade-in text-xs py-1">
-                    Data no Passado
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {events.length === 0 && !loading ? (
-                <div className="text-center text-muted-foreground py-10">
-                  Nenhum evento para esta data.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {events.map((event) => (
-                    <Card
-                      key={event.id}
-                      className="p-4 flex flex-col gap-2 shadow-sm border-l-4 border-l-primary"
-                    >
-                      <div className="font-semibold text-lg">{event.title}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Salão: {event.salon || 'N/A'} {event.time ? `• ${event.time}` : ''}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <Dialog open={isEventSheetOpen} onOpenChange={setIsEventSheetOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Novo Evento</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Input
-              placeholder="Título do evento"
-              value={newEventTitle}
-              onChange={(e) => setNewEventTitle(e.target.value)}
-            />
-            <Select value={newEventSalon} onValueChange={setNewEventSalon}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o salão" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Premium">Premium</SelectItem>
-                <SelectItem value="Kids&Teens">Kids&Teens</SelectItem>
-              </SelectContent>
-            </Select>
+      <Card className="shadow-sm border-muted">
+        <CardHeader className="border-b bg-muted/20 pb-4">
+          <div className="flex items-center justify-between">
+            <Button variant="outline" size="icon" onClick={handlePrevMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <CardTitle className="text-xl capitalize">
+              {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+            </CardTitle>
+            <Button variant="outline" size="icon" onClick={handleNextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
           </div>
-          <DialogFooter>
-            <Button onClick={handleCreateEvent}>Salvar Evento</Button>
-          </DialogFooter>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº Contrato</TableHead>
+                  <TableHead>Salão Escolhido</TableHead>
+                  <TableHead>Data do Evento</TableHead>
+                  <TableHead>Horário</TableHead>
+                  <TableHead>Cardápio</TableHead>
+                  <TableHead>Contratante</TableHead>
+                  <TableHead className="text-right">Valor do Evento</TableHead>
+                  <TableHead className="text-right">Valor Pago</TableHead>
+                  <TableHead className="text-right">Saldo Devedor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {contracts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center text-muted-foreground h-32">
+                      {loading ? 'Carregando agenda...' : 'Nenhum evento agendado para este mês.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  contracts.map((contract) => {
+                    const paid = calculatePaid(contract.expand?.payments_via_contract_id)
+                    const balance = contract.total_value - paid
+                    const isPaidOff = balance <= 0
+
+                    return (
+                      <TableRow key={contract.id}>
+                        <TableCell className="font-medium">
+                          {contract.contract_number || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={getSalonColor(contract.salon)}>
+                            {contract.salon || 'N/A'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {contract.event_date
+                            ? format(new Date(contract.event_date), 'dd/MM/yyyy')
+                            : 'N/A'}
+                        </TableCell>
+                        <TableCell>{contract.event_start_time || 'N/A'}</TableCell>
+                        <TableCell>{contract.expand?.menu_id?.name || 'N/A'}</TableCell>
+                        <TableCell>{contract.expand?.lead_id?.name || 'N/A'}</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          {formatCurrency(contract.total_value || 0)}
+                        </TableCell>
+                        <TableCell className="text-right text-emerald-600 font-medium">
+                          {formatCurrency(paid)}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-bold ${
+                            isPaidOff ? 'text-emerald-600' : 'text-red-600'
+                          }`}
+                        >
+                          {formatCurrency(balance)}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isContractSheetOpen} onOpenChange={setIsContractSheetOpen}>
+        <DialogContent className="max-w-4xl h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Criar Novo Contrato e Evento</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <ContractForm
+              onSuccess={() => {
+                setIsContractSheetOpen(false)
+                loadEvents(currentDate)
+              }}
+              onCancel={() => setIsContractSheetOpen(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

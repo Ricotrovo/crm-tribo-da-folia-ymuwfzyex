@@ -39,7 +39,11 @@ export const eventService = {
 
     for (const e of existingEvents) {
       if (e.start_time && isSameShift(e.start_time as string, startTime)) {
-        if (e.salon_selection === 'Both' || salon === 'Both' || e.salon_selection === salon) {
+        if (
+          e.salon_selection === 'Ambos os Salões' ||
+          salon === 'Ambos os Salões' ||
+          e.salon_selection === salon
+        ) {
           return false // conflict
         }
       }

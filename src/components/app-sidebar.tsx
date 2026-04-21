@@ -31,8 +31,7 @@ export function AppSidebar() {
   const navItems = [
     { title: 'Dashboard', url: '/', icon: LayoutDashboard },
     { title: 'Leads', url: '/leads', icon: Users },
-    { title: 'Agenda', url: '/agenda', icon: CalendarDays },
-    { title: 'Contratos', url: '/contracts', icon: FileText },
+    { title: 'Agenda de Festas', url: '/agenda', icon: CalendarDays },
     { title: 'Financeiro', url: '/finance', icon: CircleDollarSign },
     { title: 'Gestão Humana', url: '/hr', icon: UserSquare2 },
     { title: 'Estoque', url: '/stock', icon: Package },

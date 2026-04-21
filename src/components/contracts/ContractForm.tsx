@@ -133,6 +133,8 @@ export function ContractForm({
       discount = 0,
       extraGuestsValue = 0
     const isEscolar = selectedMenu?.name.toLowerCase() === 'escolar'
+    const isAmbos = values.salon_selection === 'Ambos os Salões'
+    const salonFee = isAmbos ? 4500 : 0
 
     if (selectedMenu && values.event_date) {
       const [year, month, day] = values.event_date.split('-').map(Number)
@@ -152,9 +154,18 @@ export function ContractForm({
 
     const photoVal = values.photographer && !values.photographer_courtesy ? 500 : 0
     const decoVal = values.extra_decoration && !values.extra_decoration_courtesy ? 300 : 0
-    const totalValue = baseValue - discount + extraGuestsValue + photoVal + decoVal
+    const totalValue = baseValue - discount + extraGuestsValue + photoVal + decoVal + salonFee
 
-    return { baseValue, discount, extraGuestsValue, photoVal, decoVal, totalValue, values }
+    return {
+      baseValue,
+      discount,
+      extraGuestsValue,
+      photoVal,
+      decoVal,
+      salonFee,
+      totalValue,
+      values,
+    }
   }, [selectedMenu, values])
 
   const ageAtParty = useMemo(() => {
@@ -252,6 +263,9 @@ export function ContractForm({
           : []),
         ...(calculation.extraGuestsValue > 0
           ? [{ name: 'Extra Guests', status: 'Charged', value: calculation.extraGuestsValue }]
+          : []),
+        ...(calculation.salonFee > 0
+          ? [{ name: 'Taxa Ambos os Salões', status: 'Charged', value: calculation.salonFee }]
           : []),
         {
           name: 'Photographer',
@@ -480,10 +494,9 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="Salon 1">Salon 1</SelectItem>
-                    <SelectItem value="Salon 2">Salon 2</SelectItem>
-                    <SelectItem value="Both">Both Salons</SelectItem>
-                    <SelectItem value="KidseTeensPremium">Kids e Teens Premium</SelectItem>
+                    <SelectItem value="Espaço Premium">Espaço Premium</SelectItem>
+                    <SelectItem value="Espaço Kids&Teens">Espaço Kids&Teens</SelectItem>
+                    <SelectItem value="Ambos os Salões">Ambos os Salões</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
