@@ -33,7 +33,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Receipt } from 'lucide-react'
+import { FileText, Receipt, Trash2 } from 'lucide-react'
 
 const schema = z.object({
   item_id: z.string().min(1, 'Item é obrigatório'),
@@ -57,19 +57,23 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
   const selectedItemId = useWatch({ control: form.control, name: 'item_id' })
   const selectedItem = items.find((i) => i.id === selectedItemId)
 
+  const watchQuantity = useWatch({ control: form.control, name: 'quantity' }) || 1
+  const watchUnitPrice = useWatch({ control: form.control, name: 'unit_price' }) || 0
+  const includedQty = selectedItem?.included_quantity || 0
+  const extraQty = Math.max(0, watchQuantity - includedQty)
+  const calculatedTotal = extraQty * watchUnitPrice
+
   useEffect(() => {
     if (selectedItem) {
-      const price = (selectedItem.base_price || 0) + (selectedItem.additional_price || 0)
-      form.setValue('unit_price', price)
+      form.setValue('unit_price', selectedItem.sale_price || selectedItem.base_price || 0)
     }
   }, [selectedItem, form])
 
   const loadData = async () => {
     const [resEventItems, resItems] = await Promise.all([
-      pb.collection('event_items').getFullList({
-        filter: `event_id = "${eventId}"`,
-        expand: 'item_id,supplier_id',
-      }),
+      pb
+        .collection('event_items')
+        .getFullList({ filter: `event_id = "${eventId}"`, expand: 'item_id,supplier_id' }),
       pb.collection('items').getFullList({ expand: 'supplier_id' }),
     ])
     setEventItems(resEventItems)
@@ -89,29 +93,34 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
   const onSubmit = async (data: any) => {
     try {
       if (!selectedItem) throw new Error('Item não encontrado')
-
-      const total = data.quantity * data.unit_price
-
       await pb.collection('event_items').create({
         event_id: eventId,
         item_id: selectedItem.id,
         supplier_id: selectedItem.supplier_id,
         quantity: data.quantity,
         unit_price: data.unit_price,
-        total_price: total,
+        total_price: calculatedTotal,
         notes: data.notes,
       })
 
       if (data.deduct_stock && selectedItem.type === 'product') {
-        const newStock = (selectedItem.stock_quantity || 0) - data.quantity
-        await pb
-          .collection('items')
-          .update(selectedItem.id, { stock_quantity: Math.max(0, newStock) })
+        const newStock = Math.max(0, (selectedItem.stock_quantity || 0) - data.quantity)
+        await pb.collection('items').update(selectedItem.id, { stock_quantity: newStock })
       }
 
       setOpen(false)
       form.reset()
-      toast({ title: 'Sucesso', description: 'Adicionado com sucesso ao evento' })
+      toast({ title: 'Sucesso', description: 'Adicionado ao evento' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Remover este item do evento?')) return
+    try {
+      await pb.collection('event_items').delete(id)
+      toast({ title: 'Sucesso', description: 'Item removido do evento.' })
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
@@ -136,7 +145,7 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
             <FileText className="w-4 h-4" /> Resumo do Evento
           </TabsTrigger>
           <TabsTrigger value="suppliers" className="flex items-center gap-2">
-            <Receipt className="w-4 h-4" /> Fechamento por Fornecedor
+            <Receipt className="w-4 h-4" /> Por Fornecedor
           </TabsTrigger>
         </TabsList>
 
@@ -146,26 +155,23 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Adicionar Item ou Serviço</DialogTitle>
+              <DialogTitle>Adicionar Item ao Evento</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
               <div className="space-y-2">
-                <Label>Item do Catálogo Global</Label>
+                <Label>Item do Catálogo</Label>
                 <Controller
                   control={form.control}
                   name="item_id"
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione um item..." />
+                        <SelectValue placeholder="Selecione..." />
                       </SelectTrigger>
                       <SelectContent>
                         {items.map((i) => (
                           <SelectItem key={i.id} value={i.id}>
-                            {i.name}{' '}
-                            {i.type === 'product'
-                              ? `(Estoque: ${i.stock_quantity || 0})`
-                              : '(Serviço)'}{' '}
+                            {i.name} {i.type === 'product' ? `(Est: ${i.stock_quantity || 0})` : ''}{' '}
                             - {i.expand?.supplier_id?.name}
                           </SelectItem>
                         ))}
@@ -176,7 +182,7 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Quantidade</Label>
+                  <Label>Quantidade Total</Label>
                   <Input type="number" min={1} {...form.register('quantity')} />
                 </div>
                 <div className="space-y-2">
@@ -185,9 +191,26 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Observações de Montagem/Uso</Label>
+                <Label>Observações</Label>
                 <Input {...form.register('notes')} />
               </div>
+
+              {selectedItem && (
+                <div className="bg-muted p-3 rounded-md text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>Qtd Inclusa no Pacote:</span>
+                    <span className="font-semibold">{includedQty}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Qtd Extra Cobrada:</span>
+                    <span className="font-semibold">{extraQty}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t mt-2">
+                    <span>Total a Cobrar:</span>
+                    <span className="font-bold text-primary">R$ {calculatedTotal.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
 
               {selectedItem?.type === 'product' && (
                 <div className="flex items-center space-x-2 bg-muted/30 p-3 rounded-md border">
@@ -203,11 +226,10 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
                     )}
                   />
                   <Label htmlFor="deduct" className="cursor-pointer">
-                    Deduzir automaticamente {form.watch('quantity')} do estoque global
+                    Deduzir {watchQuantity} do estoque global
                   </Label>
                 </div>
               )}
-
               <Button type="submit" className="w-full">
                 Confirmar e Adicionar
               </Button>
@@ -221,44 +243,37 @@ export function EventItemsSection({ eventId }: { eventId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead>Item</TableHead>
-              <TableHead>Tipo</TableHead>
               <TableHead>Fornecedor</TableHead>
-              <TableHead className="text-right">Qtd</TableHead>
-              <TableHead className="text-right">Preço Un.</TableHead>
-              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Qtd Total</TableHead>
+              <TableHead className="text-right">Total Extra</TableHead>
+              <TableHead className="text-right"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {eventItems.map((ei) => {
-              const type = ei.expand?.item_id?.type
-              return (
-                <TableRow key={ei.id}>
-                  <TableCell className="font-medium">
-                    {ei.expand?.item_id?.name}
-                    {ei.notes && (
-                      <span className="block text-xs text-muted-foreground">{ei.notes}</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {type === 'product' ? (
-                      <Badge variant="secondary">Produto</Badge>
-                    ) : (
-                      <Badge variant="outline">Serviço</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{ei.expand?.supplier_id?.name}</TableCell>
-                  <TableCell className="text-right">{ei.quantity}</TableCell>
-                  <TableCell className="text-right">R$ {(ei.unit_price || 0).toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    R$ {(ei.total_price || 0).toFixed(2)}
-                  </TableCell>
-                </TableRow>
-              )
-            })}
+            {eventItems.map((ei) => (
+              <TableRow key={ei.id}>
+                <TableCell className="font-medium">
+                  {ei.expand?.item_id?.name}
+                  {ei.notes && (
+                    <span className="block text-xs text-muted-foreground">{ei.notes}</span>
+                  )}
+                </TableCell>
+                <TableCell>{ei.expand?.supplier_id?.name}</TableCell>
+                <TableCell className="text-right">{ei.quantity}</TableCell>
+                <TableCell className="text-right font-medium">
+                  R$ {(ei.total_price || 0).toFixed(2)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(ei.id)}>
+                    <Trash2 className="h-4 w-4 text-red-500" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
             {eventItems.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-6">
-                  Nenhum item ou serviço foi adicionado ainda.
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
+                  Nenhum item adicionado.
                 </TableCell>
               </TableRow>
             )}

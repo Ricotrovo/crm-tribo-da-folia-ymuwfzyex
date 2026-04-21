@@ -31,6 +31,7 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Badge } from '@/components/ui/badge'
+import { Pencil, Trash2 } from 'lucide-react'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -40,8 +41,11 @@ const schema = z.object({
   unit: z.enum(['un', 'box', 'package', 'kg', 'liter']).optional(),
   color: z.string().optional(),
   size: z.string().optional(),
-  base_price: z.coerce.number().min(0),
+  base_price: z.coerce.number().min(0).optional(),
   additional_price: z.coerce.number().min(0).optional(),
+  cost_price: z.coerce.number().min(0).optional(),
+  sale_price: z.coerce.number().min(0).optional(),
+  included_quantity: z.coerce.number().min(0).optional(),
   stock_quantity: z.coerce.number().min(0).optional(),
   description: z.string().optional(),
 })
@@ -51,6 +55,7 @@ export function ItemsTab() {
   const [categories, setCategories] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const { toast } = useToast()
 
   const form = useForm({
@@ -65,6 +70,9 @@ export function ItemsTab() {
       size: '',
       base_price: 0,
       additional_price: 0,
+      cost_price: 0,
+      sale_price: 0,
+      included_quantity: 0,
       stock_quantity: 0,
       description: '',
     },
@@ -91,6 +99,26 @@ export function ItemsTab() {
     loadData()
   })
 
+  const handleEdit = (item: any) => {
+    form.reset({
+      ...item,
+      category_id: item.category_id || '',
+      supplier_id: item.supplier_id || '',
+    })
+    setEditingId(item.id)
+    setOpen(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Excluir este item?')) return
+    try {
+      await pb.collection('items').delete(id)
+      toast({ title: 'Sucesso', description: 'Item excluído.' })
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
+    }
+  }
+
   const onSubmit = async (data: any) => {
     try {
       if (!isProduct) {
@@ -99,37 +127,41 @@ export function ItemsTab() {
         data.size = ''
         data.unit = ''
       }
-      await pb.collection('items').create(data)
+      if (editingId) {
+        await pb.collection('items').update(editingId, data)
+        toast({ title: 'Sucesso', description: 'Item atualizado.' })
+      } else {
+        await pb.collection('items').create(data)
+        toast({ title: 'Sucesso', description: 'Item cadastrado.' })
+      }
       setOpen(false)
+      setEditingId(null)
       form.reset()
-      toast({ title: 'Sucesso', description: 'Item cadastrado com sucesso.' })
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
-  }
-
-  const getUnitLabel = (unit: string) => {
-    const units: Record<string, string> = {
-      un: 'Unidade',
-      box: 'Caixa',
-      package: 'Pacote',
-      kg: 'Kg',
-      liter: 'Litro',
-    }
-    return units[unit] || ''
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold">Catálogo Global</h2>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(o) => {
+            setOpen(o)
+            if (!o) {
+              setEditingId(null)
+              form.reset()
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button>Novo Item</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Cadastrar Novo Item ou Serviço</DialogTitle>
+              <DialogTitle>{editingId ? 'Editar Item' : 'Cadastrar Novo Item'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-4">
@@ -148,7 +180,7 @@ export function ItemsTab() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="product">Produto (Controla Estoque)</SelectItem>
+                          <SelectItem value="product">Produto (Estoque)</SelectItem>
                           <SelectItem value="service">Serviço</SelectItem>
                         </SelectContent>
                       </Select>
@@ -204,7 +236,7 @@ export function ItemsTab() {
               {isProduct && (
                 <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-md border">
                   <div className="space-y-2">
-                    <Label>Unidade de Medida</Label>
+                    <Label>Unidade</Label>
                     <Controller
                       control={form.control}
                       name="unit"
@@ -214,9 +246,9 @@ export function ItemsTab() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="un">Unidade</SelectItem>
+                            <SelectItem value="un">Un</SelectItem>
                             <SelectItem value="box">Caixa</SelectItem>
-                            <SelectItem value="package">Pacote</SelectItem>
+                            <SelectItem value="package">Pct</SelectItem>
                             <SelectItem value="kg">Kg</SelectItem>
                             <SelectItem value="liter">Litro</SelectItem>
                           </SelectContent>
@@ -229,24 +261,28 @@ export function ItemsTab() {
                     <Input {...form.register('color')} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Tamanho</Label>
+                    <Label>Tam.</Label>
                     <Input {...form.register('size')} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Estoque Inicial</Label>
+                    <Label>Estoque</Label>
                     <Input type="number" {...form.register('stock_quantity')} />
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Valor Padrão (Base Price) R$</Label>
-                  <Input type="number" step="0.01" {...form.register('base_price')} />
+                  <Label>Preço de Custo (R$)</Label>
+                  <Input type="number" step="0.01" {...form.register('cost_price')} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Valor Adicional R$</Label>
-                  <Input type="number" step="0.01" {...form.register('additional_price')} />
+                  <Label>Preço de Venda (R$)</Label>
+                  <Input type="number" step="0.01" {...form.register('sale_price')} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Qtd Inclusa (Pacote)</Label>
+                  <Input type="number" {...form.register('included_quantity')} />
                 </div>
               </div>
 
@@ -256,7 +292,7 @@ export function ItemsTab() {
               </div>
 
               <Button type="submit" className="w-full">
-                Salvar Cadastro
+                {editingId ? 'Salvar Alterações' : 'Salvar Cadastro'}
               </Button>
             </form>
           </DialogContent>
@@ -267,42 +303,44 @@ export function ItemsTab() {
           <TableRow>
             <TableHead>Nome</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>Categoria</TableHead>
             <TableHead>Fornecedor</TableHead>
-            <TableHead className="text-right">Estoque</TableHead>
-            <TableHead className="text-right">Valor Total</TableHead>
+            <TableHead className="text-right">Venda (R$)</TableHead>
+            <TableHead className="text-right">Qtd Inclusa</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((i) => {
-            const total = (i.base_price || 0) + (i.additional_price || 0)
-            return (
-              <TableRow key={i.id}>
-                <TableCell className="font-medium">
-                  {i.name}
-                  {i.color && (
-                    <Badge variant="outline" className="ml-2">
-                      {i.color}
-                    </Badge>
-                  )}
-                  {i.size && (
-                    <Badge variant="outline" className="ml-2">
-                      {i.size}
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell>{i.type === 'product' ? 'Produto' : 'Serviço'}</TableCell>
-                <TableCell>{i.expand?.category_id?.name || '-'}</TableCell>
-                <TableCell>{i.expand?.supplier_id?.name || '-'}</TableCell>
-                <TableCell className="text-right">
-                  {i.type === 'product'
-                    ? `${i.stock_quantity || 0} ${getUnitLabel(i.unit || '')}`
-                    : '-'}
-                </TableCell>
-                <TableCell className="text-right">R$ {total.toFixed(2)}</TableCell>
-              </TableRow>
-            )
-          })}
+          {items.map((i) => (
+            <TableRow key={i.id}>
+              <TableCell className="font-medium">
+                {i.name}
+                {i.color && (
+                  <Badge variant="outline" className="ml-2">
+                    {i.color}
+                  </Badge>
+                )}
+                {i.size && (
+                  <Badge variant="outline" className="ml-2">
+                    {i.size}
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell>{i.type === 'product' ? 'Produto' : 'Serviço'}</TableCell>
+              <TableCell>{i.expand?.supplier_id?.name || '-'}</TableCell>
+              <TableCell className="text-right font-medium text-green-600">
+                {(i.sale_price || i.base_price || 0).toFixed(2)}
+              </TableCell>
+              <TableCell className="text-right">{i.included_quantity || 0}</TableCell>
+              <TableCell className="text-right">
+                <Button variant="ghost" size="icon" onClick={() => handleEdit(i)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(i.id)}>
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
           {items.length === 0 && (
             <TableRow>
               <TableCell colSpan={6} className="text-center text-muted-foreground py-4">

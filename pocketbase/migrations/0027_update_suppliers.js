@@ -1,0 +1,30 @@
+migrate(
+  (app) => {
+    const col = app.findCollectionByNameOrId('suppliers')
+    col.fields.add(new TextField({ name: 'secondary_phone' }))
+    col.fields.add(new EmailField({ name: 'secondary_email' }))
+    col.fields.add(new TextField({ name: 'address_zip' }))
+    col.fields.add(new TextField({ name: 'address_street' }))
+    col.fields.add(new TextField({ name: 'address_number' }))
+    col.fields.add(new TextField({ name: 'address_complement' }))
+    col.fields.add(new TextField({ name: 'address_neighborhood' }))
+    col.fields.add(new TextField({ name: 'address_city' }))
+    col.fields.add(new TextField({ name: 'address_state' }))
+    col.fields.add(new TextField({ name: 'pix_key' }))
+    app.save(col)
+  },
+  (app) => {
+    const col = app.findCollectionByNameOrId('suppliers')
+    col.fields.removeByName('secondary_phone')
+    col.fields.removeByName('secondary_email')
+    col.fields.removeByName('address_zip')
+    col.fields.removeByName('address_street')
+    col.fields.removeByName('address_number')
+    col.fields.removeByName('address_complement')
+    col.fields.removeByName('address_neighborhood')
+    col.fields.removeByName('address_city')
+    col.fields.removeByName('address_state')
+    col.fields.removeByName('pix_key')
+    app.save(col)
+  },
+)
