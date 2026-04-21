@@ -222,11 +222,13 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {leads.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
+                    {leads
+                      .filter((c) => c.id)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -306,11 +308,13 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {menus.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
+                    {menus
+                      .filter((m) => m.id)
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -362,19 +366,24 @@ export function ContractForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Decoration Supplier</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value || ''}>
+                <Select
+                  onValueChange={(val) => field.onChange(val === 'none' ? '' : val)}
+                  value={field.value || 'none'}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Optional" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {suppliers.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="none">None</SelectItem>
+                    {suppliers
+                      .filter((s) => s.id)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
