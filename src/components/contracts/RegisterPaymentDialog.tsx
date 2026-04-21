@@ -37,6 +37,8 @@ const formSchema = z.object({
   payment_method: z.string().min(1, 'Forma de pagamento é obrigatória'),
 })
 
+import { Trash2 } from 'lucide-react'
+
 export function RegisterPaymentDialog({
   open,
   onOpenChange,
@@ -65,9 +67,13 @@ export function RegisterPaymentDialog({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const data = {
+      const data: any = {
         ...values,
         contract_id: contractId,
+      }
+
+      if (!payment?.id) {
+        data.recorded_by = pb.authStore.record?.id
       }
 
       if (payment?.id) {
@@ -185,11 +191,9 @@ export function RegisterPaymentDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="Pix">Pix</SelectItem>
-                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                      <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                      <SelectItem value="Boleto">Boleto</SelectItem>
+                      <SelectItem value="Cartão">Cartão</SelectItem>
                       <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                      <SelectItem value="Transferência">Transferência</SelectItem>
+                      <SelectItem value="Depósito">Depósito</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -197,8 +201,31 @@ export function RegisterPaymentDialog({
               )}
             />
 
-            <div className="flex justify-end pt-4">
-              <Button type="submit" className="w-full">
+            <div className="flex justify-between items-center pt-4">
+              {payment?.id && pb.authStore.record?.role?.toLowerCase() === 'gerente' ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await pb.collection('payments').delete(payment.id)
+                      toast({ title: 'Sucesso', description: 'Pagamento excluído.' })
+                      onSuccess()
+                    } catch (error: any) {
+                      toast({
+                        title: 'Erro',
+                        description: error.message || 'Erro ao excluir.',
+                        variant: 'destructive',
+                      })
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                </Button>
+              ) : (
+                <div />
+              )}
+              <Button type="submit" className={payment?.id ? '' : 'w-full'}>
                 Salvar Pagamento
               </Button>
             </div>

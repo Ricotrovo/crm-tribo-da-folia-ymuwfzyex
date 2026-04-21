@@ -16,6 +16,14 @@ import pb from '@/lib/pocketbase/client'
 import { useRealtime } from '@/hooks/use-realtime'
 import { CostBreakdown } from './CostBreakdown'
 import { RegisterPaymentDialog } from './RegisterPaymentDialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export function ContractDetailsSheet({
   contractId,
@@ -41,6 +49,7 @@ export function ContractDetailsSheet({
       const p = await pb.collection('payments').getFullList({
         filter: `contract_id = '${contractId}'`,
         sort: 'due_date',
+        expand: 'recorded_by',
       })
       setPayments(p)
     } catch (err) {
@@ -86,6 +95,7 @@ export function ContractDetailsSheet({
   const eventDate = new Date(contract.event_date)
   const nearingEvent = isBefore(eventDate, addDays(new Date(), 15)) && balance > 0
   const isFinalized = contract.status === 'finalized' || contract.status === 'canceled'
+  const isGerente = pb.authStore.record?.role?.toLowerCase() === 'gerente'
 
   const breakdownData = contract.items_breakdown || {}
 
@@ -222,51 +232,75 @@ export function ContractDetailsSheet({
                   </Button>
                 </div>
 
-                <div className="space-y-3">
-                  {payments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Nenhuma parcela registrada.
-                    </p>
-                  ) : (
-                    payments.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between p-3 border rounded-md bg-card"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">
-                            Venc: {p.due_date ? format(new Date(p.due_date), 'dd/MM/yyyy') : '-'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {p.payment_method || 'Não definido'}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">R$ {(p.amount || 0).toFixed(2)}</p>
-                          <Badge
-                            variant={
-                              p.status === 'paid' || p.status === 'Pago' ? 'default' : 'secondary'
-                            }
-                            className="mt-1 text-[10px]"
-                          >
-                            {p.status}
-                          </Badge>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="ml-4"
-                          disabled={isFinalized}
-                          onClick={() => {
-                            setSelectedPayment(p)
-                            setPaymentDialogOpen(true)
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      </div>
-                    ))
-                  )}
+                <div className="border rounded-md overflow-hidden bg-card">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead>Data / Venc</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Método</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Registrado Por</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+                            Nenhuma parcela registrada.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        payments.map((p) => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-medium text-sm">
+                              {p.due_date ? format(new Date(p.due_date), 'dd/MM/yyyy') : '-'}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              R$ {(p.amount || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {p.payment_method || 'Não definido'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  p.status === 'paid' || p.status === 'Pago'
+                                    ? 'default'
+                                    : 'secondary'
+                                }
+                                className={
+                                  p.status === 'paid' || p.status === 'Pago'
+                                    ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                    : ''
+                                }
+                              >
+                                {p.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {p.expand?.recorded_by?.name || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {isGerente && !isFinalized && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedPayment(p)
+                                    setPaymentDialogOpen(true)
+                                  }}
+                                >
+                                  Editar
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </TabsContent>

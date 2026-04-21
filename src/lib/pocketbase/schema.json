@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T23:39:10.197Z",
+  "generatedAt": "2026-04-21T23:58:39.551Z",
   "collections": [
     {
       "name": "users",
@@ -723,8 +723,8 @@
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
         "create": "@request.auth.id != ''",
-        "update": "@request.auth.id != ''",
-        "delete": "@request.auth.id != ''"
+        "update": "@request.auth.role ~ 'gerente' || @request.auth.role ~ 'Gerente'",
+        "delete": "@request.auth.role ~ 'gerente' || @request.auth.role ~ 'Gerente'"
       },
       "fields": [
         {
@@ -777,6 +777,13 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "recorded_by",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": []

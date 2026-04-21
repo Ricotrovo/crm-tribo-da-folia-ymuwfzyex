@@ -223,7 +223,7 @@ export function ContractForm({
       }
 
       const payoutDate = new Date(dueDate)
-      payoutDate.setDate(payoutDate.getDate() + (values.payment_method === 'Credit Card' ? 30 : 1))
+      payoutDate.setDate(payoutDate.getDate() + (values.payment_method === 'Cartão' ? 30 : 1))
 
       inst.push({
         amount: amountPerInst,
@@ -331,6 +331,7 @@ export function ContractForm({
           payout_date: inst.payout_date,
           payment_method: inst.payment_method,
           status: inst.status,
+          recorded_by: pb.authStore.record?.id,
         })
       }
 
@@ -784,11 +785,11 @@ export function ContractForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="PIX">PIX</SelectItem>
-                    <SelectItem value="Credit Card">Credit Card</SelectItem>
-                    <SelectItem value="Bank Slip">Bank Slip</SelectItem>
-                    <SelectItem value="TransferenciaDeposito">Transferência/Depósito</SelectItem>
-                  </SelectContent>
+                    <SelectItem value="Pix">Pix</SelectItem>
+                    <SelectItem value="Cartão">Cartão</SelectItem>
+                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                    <SelectItem value="Depósito">Depósito</SelectItem>
+                  </SelectContent>{' '}
                 </Select>
                 <FormMessage />
               </FormItem>
