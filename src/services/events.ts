@@ -17,6 +17,7 @@ export type EventRecord = {
   theme?: string
   cake_flavor?: string
   decoration_supplier_id?: string
+  contract_id?: string
   created: string
   updated: string
 }

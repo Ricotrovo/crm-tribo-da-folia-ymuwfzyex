@@ -4,16 +4,22 @@ export interface Contract {
   id: string
   lead_id: string
   client_id?: string
+  birthday_person_id?: string
   total_value: number
   contract_number: string
   event_date: string
   notes: string
+  cake_notes?: string
+  theme_notes?: string
+  payment_notes?: string
+  payment_day?: number
   items_breakdown?: any
   payment_method?: string
   installments?: number
   decoration_supplier_id?: string
   created: string
   updated: string
+  expand?: any
 }
 
 export const getContractsByLead = async (leadId: string) => {

@@ -26,13 +26,14 @@ export default function Contracts() {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [viewContract, setViewContract] = useState<any>(null)
+  const [contractPayments, setContractPayments] = useState<any[]>([])
 
   const fetchContracts = async () => {
     setIsLoading(true)
     try {
       const records = await pb.collection('contracts').getFullList({
         sort: '-created',
-        expand: 'lead_id',
+        expand: 'lead_id,birthday_person_id',
       })
       setContracts(records || [])
     } catch (error) {
@@ -48,9 +49,50 @@ export default function Contracts() {
 
   useRealtime('contracts', fetchContracts)
 
+  const handleViewContract = async (c: any) => {
+    setViewContract(c)
+    try {
+      const payments = await pb.collection('payments').getFullList({
+        filter: `contract_id = '${c.id}'`,
+        sort: 'due_date',
+      })
+      setContractPayments(payments)
+    } catch (e) {
+      console.error(e)
+      setContractPayments([])
+    }
+  }
+
   return (
     <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row justify-between gap-4">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #print-area, #print-area * {
+            visibility: visible;
+          }
+          #print-area {
+            position: fixed !important;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: visible;
+            padding: 1cm;
+            margin: 0;
+            z-index: 999999;
+            background: white;
+            color: black;
+          }
+          .print-hide {
+             display: none !important;
+          }
+        }
+      `}</style>
+
+      <div className="flex flex-col sm:flex-row justify-between gap-4 print-hide">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Contracts</h2>
           <p className="text-muted-foreground mt-1">
@@ -64,7 +106,7 @@ export default function Contracts() {
         </div>
       </div>
 
-      <Card className="shadow-sm">
+      <Card className="shadow-sm print-hide">
         <CardHeader className="pb-3 border-b">
           <CardTitle>All Contracts</CardTitle>
         </CardHeader>
@@ -108,7 +150,7 @@ export default function Contracts() {
                       R$ {c.total_value?.toFixed(2)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm" onClick={() => setViewContract(c)}>
+                      <Button variant="outline" size="sm" onClick={() => handleViewContract(c)}>
                         View
                       </Button>
                     </TableCell>
@@ -133,83 +175,173 @@ export default function Contracts() {
       </Dialog>
 
       <Dialog open={!!viewContract} onOpenChange={(open) => !open && setViewContract(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Contract {viewContract?.contract_number}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 text-sm py-4">
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 bg-muted/30 p-4 rounded-lg">
-              <div>
-                <span className="text-muted-foreground block text-xs">Client</span>
-                <span className="font-medium text-base">{viewContract?.expand?.lead_id?.name}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Event Date</span>
-                <span className="font-medium text-base">
-                  {viewContract?.event_date
-                    ? new Date(viewContract.event_date).toLocaleDateString('pt-BR')
-                    : '-'}
-                </span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Payment Method</span>
-                <span className="font-medium">{viewContract?.payment_method || '-'}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-xs">Installments</span>
-                <span className="font-medium">
-                  {viewContract?.installments ? `${viewContract.installments}x` : '-'}
-                </span>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto p-0">
+          <div id="print-area" className="p-6 bg-white text-black space-y-6 text-sm">
+            <div className="text-center border-b pb-4 border-slate-300">
+              <h1 className="text-2xl font-bold uppercase tracking-wider">
+                Tribo da Folia - Contrato
+              </h1>
+              <p className="text-muted-foreground mt-1 text-xs">
+                CNPJ: 00.000.000/0001-00 | Av. Principal, 100 - Centro
+              </p>
+              <p className="font-mono text-xs mt-2">Contrato Nº {viewContract?.contract_number}</p>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="font-bold text-base uppercase bg-muted/50 p-1 border-l-4 border-primary">
+                1. Contratante e Aniversariante
+              </h2>
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Contratante:</span>{' '}
+                  {viewContract?.expand?.lead_id?.name}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">CPF/RG:</span>{' '}
+                  {viewContract?.expand?.lead_id?.cpf || viewContract?.expand?.lead_id?.rg || '-'}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Telefone:</span>{' '}
+                  {viewContract?.expand?.lead_id?.phone || '-'}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Email:</span>{' '}
+                  {viewContract?.expand?.lead_id?.email || '-'}
+                </div>
+                {viewContract?.expand?.birthday_person_id && (
+                  <div className="col-span-2 mt-2 pt-2 border-t">
+                    <span className="font-semibold text-muted-foreground">Aniversariante:</span>{' '}
+                    {viewContract.expand.birthday_person_id.name}
+                  </div>
+                )}
               </div>
             </div>
 
-            {viewContract?.items_breakdown && (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="bg-muted px-4 py-2 font-semibold border-b">Financial Breakdown</div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {viewContract.items_breakdown.map((item: any, i: number) => (
-                      <TableRow key={i}>
-                        <TableCell>{item.name}</TableCell>
-                        <TableCell>
-                          <span
-                            className={
-                              item.status === 'Discount' || item.status === 'Courtesy'
-                                ? 'text-emerald-600 font-medium'
-                                : ''
-                            }
-                          >
-                            {item.status}
-                          </span>
-                        </TableCell>
-                        <TableCell
-                          className={`text-right ${item.value < 0 ? 'text-emerald-600' : ''}`}
-                        >
-                          {item.value < 0 ? '-' : ''}R$ {Math.abs(item.value || 0).toFixed(2)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="bg-muted/50 p-4 flex justify-between items-center border-t">
-                  <span className="text-muted-foreground font-medium text-base">
-                    Total Approved
-                  </span>
-                  <span className="font-bold text-xl text-primary">
+            <div className="space-y-2">
+              <h2 className="font-bold text-base uppercase bg-muted/50 p-1 border-l-4 border-primary">
+                2. Dados do Evento
+              </h2>
+              <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Data:</span>{' '}
+                  {viewContract?.event_date
+                    ? new Date(viewContract.event_date).toLocaleDateString('pt-BR')
+                    : '-'}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Convidados:</span>{' '}
+                  {viewContract?.guests || '-'}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="font-bold text-base uppercase bg-muted/50 p-1 border-l-4 border-primary">
+                3. Observações e Detalhes
+              </h2>
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Tema da Festa:</span>{' '}
+                  {viewContract?.theme_notes || '-'}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">
+                    Bolo (Sabor/Detalhes):
+                  </span>{' '}
+                  {viewContract?.cake_notes || '-'}
+                </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">
+                    Observações de Pagamento:
+                  </span>{' '}
+                  {viewContract?.payment_notes || '-'}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="font-bold text-base uppercase bg-muted/50 p-1 border-l-4 border-primary">
+                4. Resumo Financeiro e Parcelas
+              </h2>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <div>
+                  <span className="font-semibold text-muted-foreground">Valor Total:</span>{' '}
+                  <span className="font-bold text-emerald-700">
                     R$ {viewContract?.total_value?.toFixed(2)}
                   </span>
                 </div>
+                <div>
+                  <span className="font-semibold text-muted-foreground">Forma de Pagamento:</span>{' '}
+                  {viewContract?.payment_method}
+                </div>
+                {viewContract?.payment_day && (
+                  <div>
+                    <span className="font-semibold text-muted-foreground">
+                      Dia de Vencimento Fixo:
+                    </span>{' '}
+                    {viewContract.payment_day}
+                  </div>
+                )}
               </div>
-            )}
+
+              {contractPayments && contractPayments.length > 0 && (
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
+                      <TableRow>
+                        <TableHead className="py-1 h-8">Parcela</TableHead>
+                        <TableHead className="py-1 h-8">Vencimento</TableHead>
+                        <TableHead className="py-1 h-8 text-right">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contractPayments.map((p: any, i: number) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="py-1 h-8">{i + 1}</TableCell>
+                          <TableCell className="py-1 h-8">
+                            {new Date(p.due_date).toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          <TableCell className="py-1 h-8 text-right font-medium">
+                            R$ {p.amount?.toFixed(2)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 mt-8 text-xs text-slate-600">
+              <h2 className="font-bold text-sm uppercase bg-muted/50 p-1 border-l-4 border-primary">
+                5. Cláusulas Padrão
+              </h2>
+              <p>
+                1. O cancelamento deve ser notificado com no mínimo 30 dias de antecedência, sujeito
+                a multa de 20% do valor total do contrato.
+              </p>
+              <p>
+                2. O número de convidados excedente será cobrado no dia do evento, conforme tabela
+                vigente.
+              </p>
+              <p>
+                3. O contratante cede os direitos de imagem do evento para uso em portfólio da
+                empresa, salvo manifestação contrária por escrito.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-8 mt-16 pt-8 text-center text-sm font-medium">
+              <div>
+                <div className="border-t border-black mb-2 mx-8"></div>
+                <p>Contratante</p>
+              </div>
+              <div>
+                <div className="border-t border-black mb-2 mx-8"></div>
+                <p>Tribo da Folia</p>
+              </div>
+            </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="p-6 border-t print-hide bg-slate-50">
             <Button variant="outline" onClick={() => window.print()}>
               Print Contract
             </Button>

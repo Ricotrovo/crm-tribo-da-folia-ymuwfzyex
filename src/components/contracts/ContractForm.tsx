@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -28,13 +29,16 @@ import { eventService } from '@/services/events'
 
 const formSchema = z.object({
   client_id: z.string().min(1, 'Required'),
+  birthday_person_id: z.string().optional().or(z.literal('')),
   event_date: z.string().min(1, 'Required'),
   start_time: z.string().min(1, 'Required'),
   salon_selection: z.string().min(1, 'Required'),
   menu_id: z.string().min(1, 'Required'),
   guests: z.coerce.number().min(50, 'Minimum 50'),
   theme: z.string().optional(),
+  theme_notes: z.string().optional(),
   cake_flavor: z.string().optional(),
+  cake_notes: z.string().optional(),
   decoration_supplier_id: z.string().optional().or(z.literal('')),
   photographer: z.boolean().default(false),
   photographer_courtesy: z.boolean().default(false),
@@ -42,6 +46,11 @@ const formSchema = z.object({
   extra_decoration_courtesy: z.boolean().default(false),
   installments: z.coerce.number().min(1).max(12),
   payment_method: z.string().min(1, 'Required'),
+  payment_day: z
+    .union([z.coerce.number().min(1).max(31), z.literal(''), z.literal(0)])
+    .optional()
+    .transform((v) => (v === '' || v === 0 ? undefined : v)),
+  payment_notes: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -54,13 +63,31 @@ export function ContractForm({
   onCancel: () => void
 }) {
   const [leads, setLeads] = useState<any[]>([])
+  const [childrenList, setChildrenList] = useState<any[]>([])
   const [menus, setMenus] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { guests: 50, installments: 1, photographer: false, extra_decoration: false },
+    defaultValues: {
+      guests: 50,
+      installments: 1,
+      photographer: false,
+      extra_decoration: false,
+      client_id: '',
+      birthday_person_id: '',
+      menu_id: '',
+      start_time: '',
+      salon_selection: '',
+      payment_method: '',
+      decoration_supplier_id: '',
+      theme: '',
+      theme_notes: '',
+      cake_flavor: '',
+      cake_notes: '',
+      payment_notes: '',
+    },
   })
 
   useEffect(() => {
@@ -68,6 +95,18 @@ export function ContractForm({
     pb.collection('menus').getFullList({ sort: 'name' }).then(setMenus)
     pb.collection('suppliers').getFullList({ sort: 'name' }).then(setSuppliers)
   }, [])
+
+  const clientId = form.watch('client_id')
+  useEffect(() => {
+    if (clientId) {
+      pb.collection('children')
+        .getFullList({ filter: `lead_id = '${clientId}'` })
+        .then(setChildrenList)
+        .catch(() => setChildrenList([]))
+    } else {
+      setChildrenList([])
+    }
+  }, [clientId])
 
   const values = form.watch()
   const selectedMenu = menus.find((m) => m.id === values.menu_id)
@@ -125,21 +164,6 @@ export function ContractForm({
       }
 
       const client = leads.find((l) => l.id === data.client_id)
-      const eventRecord = await pb.collection('events').create({
-        title: `Party - ${client?.name}`,
-        date: `${data.event_date} 12:00:00.000Z`,
-        start_time: data.start_time,
-        salon_selection: data.salon_selection,
-        duration: 4,
-        guests: data.guests,
-        menu: selectedMenu?.name,
-        theme: data.theme,
-        cake_flavor: data.cake_flavor,
-        decoration_supplier_id: data.decoration_supplier_id || null,
-        client_name: client?.name,
-        status: 'Scheduled',
-      })
-
       const itemsBreakdown = [
         { name: 'Base Menu', status: 'Charged', value: calculation.baseValue },
         ...(calculation.discount > 0
@@ -170,19 +194,57 @@ export function ContractForm({
 
       const contractRecord = await createContract({
         lead_id: data.client_id,
+        birthday_person_id: data.birthday_person_id || undefined,
         total_value: calculation.totalValue,
-        notes: `Event: ${eventRecord.id}, Theme: ${data.theme}`,
+        notes: `Theme: ${data.theme || '-'}`,
+        cake_notes: data.cake_notes,
+        theme_notes: data.theme_notes,
+        payment_notes: data.payment_notes,
+        payment_day: data.payment_day,
         event_date: `${data.event_date} 12:00:00.000Z`,
         contract_number: `CTR-${Date.now()}`,
         items_breakdown: itemsBreakdown,
         payment_method: data.payment_method,
         installments: data.installments,
-        decoration_supplier_id: data.decoration_supplier_id || null,
+        decoration_supplier_id: data.decoration_supplier_id || undefined,
       })
 
+      const eventRecord = await pb.collection('events').create({
+        title: `Party - ${client?.name}`,
+        date: `${data.event_date} 12:00:00.000Z`,
+        start_time: data.start_time,
+        salon_selection: data.salon_selection,
+        duration: 4,
+        guests: data.guests,
+        menu: selectedMenu?.name,
+        theme: data.theme,
+        cake_flavor: data.cake_flavor,
+        decoration_supplier_id: data.decoration_supplier_id || null,
+        client_name: client?.name,
+        status: 'confirmed',
+        contract_id: contractRecord.id,
+      })
+
+      const eventDateObj = new Date(`${data.event_date}T12:00:00.000Z`)
+      const eventLimitDate = new Date(eventDateObj)
+      eventLimitDate.setDate(eventLimitDate.getDate() - 10)
+
       for (let i = 0; i < data.installments; i++) {
-        const dueDate = new Date()
+        let dueDate = new Date()
         dueDate.setMonth(dueDate.getMonth() + i)
+
+        if (data.payment_day) {
+          const month = new Date().getMonth() + i
+          const year = new Date().getFullYear() + Math.floor(month / 12)
+          const adjustedMonth = month % 12
+          const maxDays = new Date(year, adjustedMonth + 1, 0).getDate()
+          dueDate = new Date(year, adjustedMonth, Math.min(data.payment_day, maxDays))
+        }
+
+        if (dueDate > eventLimitDate) {
+          dueDate = new Date(eventLimitDate)
+        }
+
         const payoutDate = new Date(dueDate)
         payoutDate.setDate(payoutDate.getDate() + (data.payment_method === 'Credit Card' ? 30 : 1))
 
@@ -214,21 +276,48 @@ export function ContractForm({
             name="client_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Client / Lead</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <FormLabel>Contractor / Client</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select client" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {leads
-                      .filter((c) => c.id)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
+                    {leads.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="birthday_person_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Celebrant (Child)</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value || undefined}
+                  disabled={!clientId}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select child" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {childrenList.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -254,7 +343,7 @@ export function ContractForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Start Time</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select" />
@@ -279,7 +368,7 @@ export function ContractForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Salon Selection</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select" />
@@ -301,20 +390,18 @@ export function ContractForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Menu</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select menu" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {menus
-                      .filter((m) => m.id)
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name}
-                        </SelectItem>
-                      ))}
+                    {menus.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -329,32 +416,6 @@ export function ContractForm({
                 <FormLabel>Guests</FormLabel>
                 <FormControl>
                   <Input type="number" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="theme"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Theme</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Safari" {...field} value={field.value || ''} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="cake_flavor"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cake Flavor</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Chocolate" {...field} value={field.value || ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -377,15 +438,72 @@ export function ContractForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    {suppliers
-                      .filter((s) => s.id)
-                      .map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
+                    {suppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="theme"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Theme</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Safari" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="theme_notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Theme Observations</FormLabel>
+                <FormControl>
+                  <Input placeholder="Details..." {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="cake_flavor"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cake Flavor</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Chocolate" {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="cake_notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cake Observations</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Dietary restrictions..."
+                    {...field}
+                    value={field.value || ''}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -494,7 +612,7 @@ export function ContractForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Payment Method</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select" />
@@ -506,6 +624,37 @@ export function ContractForm({
                     <SelectItem value="Bank Slip">Bank Slip</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="payment_day"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Due Day (Day X)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="Optional fixed day"
+                    {...field}
+                    value={field.value || ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="payment_notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Payment Observations</FormLabel>
+                <FormControl>
+                  <Input placeholder="Agreements..." {...field} value={field.value || ''} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
