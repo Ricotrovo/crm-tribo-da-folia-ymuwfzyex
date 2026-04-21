@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Form,
   FormControl,
@@ -61,6 +62,7 @@ const formSchema = z.object({
     .optional()
     .transform((v) => (v === '' || v === 0 ? undefined : v)),
   payment_notes: z.string().optional(),
+  bank_details: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -101,6 +103,7 @@ export function ContractForm({
       cake_notes: '',
       payment_notes: '',
       courtesies: '',
+      bank_details: '',
     },
   })
 
@@ -291,6 +294,7 @@ export function ContractForm({
         salon: data.salon_selection,
         has_alcohol: data.has_alcohol,
         courtesies: data.courtesies,
+        bank_details: data.bank_details,
         menu_id: data.menu_id,
       })
 
@@ -304,6 +308,28 @@ export function ContractForm({
           status: inst.status,
         })
       }
+
+      const client = leads.find((l) => l.id === data.client_id)
+      const child = childrenList.find((c) => c.id === data.birthday_person_id)
+      const title = child ? `Festa de ${child.name}` : `Evento de ${client?.name || 'Cliente'}`
+
+      await pb.collection('events').create({
+        title,
+        date: `${data.event_date} 12:00:00.000Z`,
+        time: data.start_time,
+        salon: data.salon_selection,
+        client_name: client?.name || '',
+        guests: data.guests,
+        menu: selectedMenu?.name || '',
+        status: 'confirmed',
+        start_time: data.start_time,
+        salon_selection: data.salon_selection,
+        duration: 4,
+        theme: data.theme,
+        cake_flavor: data.cake_flavor,
+        decoration_supplier_id: data.decoration_supplier_id || undefined,
+        contract_id: contractRecord.id,
+      })
 
       toast.success('Contract generated successfully! Event confirmed automatically.')
       onSuccess(contractRecord.id)
@@ -768,6 +794,23 @@ export function ContractForm({
                 <FormLabel>Observações do Pagamento</FormLabel>
                 <FormControl>
                   <Input placeholder="Agreements..." {...field} value={field.value || ''} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="bank_details"
+            render={({ field }) => (
+              <FormItem className="col-span-1 md:col-span-2">
+                <FormLabel>Dados Bancários (Contrato)</FormLabel>
+                <FormControl>
+                  <Textarea
+                    placeholder="Informações bancárias personalizadas..."
+                    {...field}
+                    value={field.value || ''}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

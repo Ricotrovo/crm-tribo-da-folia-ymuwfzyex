@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T17:31:40.759Z",
+  "generatedAt": "2026-04-21T17:39:33.352Z",
   "collections": [
     {
       "name": "users",
@@ -485,7 +485,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Salon 1", "Salon 2", "Both"]
+          "selectValues": ["Salon 1", "Salon 2", "Both", "KidseTeensPremium"]
         },
         {
           "name": "start_time",

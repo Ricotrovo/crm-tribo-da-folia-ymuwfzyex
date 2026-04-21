@@ -67,7 +67,7 @@ export default function ContractPrint() {
         <div className="flex justify-end mb-4 print:hidden">
           <Button onClick={() => window.print()} className="gap-2">
             <Printer className="w-4 h-4" />
-            Imprimir Contrato
+            Export to PDF / Imprimir
           </Button>
         </div>
 
@@ -176,6 +176,30 @@ export default function ContractPrint() {
           <span className="font-bold">Cortesias:</span> {contract.courtesies || 'Nenhuma'}
         </div>
 
+        {contract.items_breakdown && contract.items_breakdown.length > 0 && (
+          <>
+            <h2 className="font-bold mb-1">COMPOSIÇÃO DO VALOR</h2>
+            <table className="w-full border-collapse border border-black text-center mb-2">
+              <thead>
+                <tr>
+                  <th className="border border-black p-1 w-1/2">Item</th>
+                  <th className="border border-black p-1 w-1/4">Status</th>
+                  <th className="border border-black p-1 w-1/4">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contract.items_breakdown.map((item: any, idx: number) => (
+                  <tr key={idx}>
+                    <td className="border border-black p-1">{item.name}</td>
+                    <td className="border border-black p-1">{item.status}</td>
+                    <td className="border border-black p-1">{formatCurrency(item.value)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
         <h2 className="font-bold mb-1">DADOS DO PAGAMENTO</h2>
         <div className="border border-black flex mb-2 font-bold bg-gray-50 print:bg-white">
           <div className="flex-1 border-r border-black p-2">
@@ -222,44 +246,78 @@ export default function ContractPrint() {
 
         <div className="border border-black text-center p-2 mb-4 text-[10px] leading-tight bg-gray-50 print:bg-white">
           <strong className="block mb-1">Dados Bancários para depósitos</strong>
-          Banco do Brasil: Ag.: 0300-X C/C.: 127722-7 | Banco Itaú: Ag.: 7646 C/C.: 55443-1 | Banco
-          Santander: Ag.: 0915 C/C.: 13000535-8
-          <br />
-          PIX CNPJ 10.368.886/0001-84 | Tribo da Folia Festas e Eventos Eireli - CNPJ
-          10.368.886/0001-84
-          <br />
-          OBS: Após efetuar transferência envie comprovante para: <u>
-            festa@tribodafolia.com.br
-          </u>{' '}
-          ou WhatsApp: (11) 99518-6838
+          {contract.bank_details ? (
+            <div
+              dangerouslySetInnerHTML={{ __html: contract.bank_details.replace(/\n/g, '<br />') }}
+            />
+          ) : (
+            <>
+              Banco do Brasil: Ag.: 0300-X C/C.: 127722-7 | Banco Itaú: Ag.: 7646 C/C.: 55443-1 |
+              Banco Santander: Ag.: 0915 C/C.: 13000535-8
+              <br />
+              PIX CNPJ 10.368.886/0001-84 | Tribo da Folia Festas e Eventos Eireli - CNPJ
+              10.368.886/0001-84
+              <br />
+              OBS: Após efetuar transferência envie comprovante para:{' '}
+              <u>festa@tribodafolia.com.br</u> ou WhatsApp: (11) 99518-6838
+            </>
+          )}
         </div>
 
-        <div className="text-[9px] text-justify space-y-2 leading-tight">
+        <div className="text-[9px] text-justify space-y-2 leading-tight mt-4">
           <p>
             Pelo presente instrumento, os signatários: Contratante e a Contratada, têm entre si,
             justo e acordado as seguintes normas de contrato, as quais mutuamente outorgam e aceitam
             a saber que ficam denominadas: Contratada: Tribo da Folia Festas e Eventos Eireli,
             CNPJ.: 10.368.886/0001-84, situada na Av. SUPLICY, 708 / 734 - Jardim Santa Mena -
             Guarulhos - SP - CEP.: 07196-000 e do outro lado como: <strong>{lead?.name}</strong>,
-            RG: {lead?.rg} e CPF: {lead?.cpf} com endereço Rua {lead?.address_street},{' '}
-            {lead?.address_number} - Bairro: {lead?.address_neighborhood} - CEP: {lead?.address_zip}{' '}
-            - {lead?.address_city}.
+            RG: {lead?.rg || '_________________'} e CPF: {lead?.cpf || '_________________'} com
+            endereço Rua {lead?.address_street || '_________________'},{' '}
+            {lead?.address_number || '___'} - Bairro:{' '}
+            {lead?.address_neighborhood || '_________________'} - CEP:{' '}
+            {lead?.address_zip || '_________'} - {lead?.address_city || '_________________'}.
           </p>
           <p>
-            A Contratada se obriga a reservar o seu salão para Nº.: {contract.guest_count}{' '}
-            convidados, no dia {formatDate(contract.event_date)} pelo valor de:{' '}
-            {formatCurrency(contract.total_value)} pelo período de 4 horas (
-            {contract.event_start_time} | {contract.event_end_time}), a contratada disponibiliza 30
-            minutos de tolerância, este período extra serve para a desocupação do espaço, não mais
-            havendo serviços de buffet. Ultrapassado o período de 30 minutos, será cobrado o valor
-            integral da hora, tendo com base de cálculo um quarto do valor do contrato. A contratada
-            garante a qualidade de seus serviços, salvo se a quantidade de convidados presente em
-            lista, exceda 15% da quantidade contratada, qualquer alteração no contrato dependerá da
-            concordância e da disponibilidade em agenda, podendo implicar em alteração no valor
-            pactuado. A contratada prestará os serviços de acordo com o Cardápio escolhido, o qual
-            fica fazendo parte integrante deste contrato, podendo excluir ou substituir a qualquer
-            momento seus itens sem qualquer aviso prévio. Crianças até 5 anos não pagam.
+            <strong>CLÁUSULA PRIMEIRA - DO OBJETO:</strong> A Contratada se obriga a reservar o seu
+            salão para {contract.guest_count} convidados, no dia {formatDate(contract.event_date)}{' '}
+            pelo valor de: {formatCurrency(contract.total_value)} pelo período de 4 horas (
+            {contract.event_start_time} às {contract.event_end_time}). A contratada disponibiliza 30
+            minutos de tolerância para desocupação do espaço, sem serviços de buffet. Ultrapassado
+            este período, será cobrado o valor integral de uma hora extra (25% do valor do
+            contrato). A contratada prestará os serviços conforme Cardápio escolhido, que integra
+            este contrato, podendo substituir itens por motivo de força maior. Crianças até 5 anos
+            (incompletos) não pagam.
           </p>
+          <p>
+            <strong>CLÁUSULA SEGUNDA - CANCELAMENTO:</strong> Em caso de desistência ou rescisão por
+            parte da Contratante, não haverá devolução dos valores pagos, que serão retidos a título
+            de multa rescisória e ressarcimento por perdas e danos (reserva de data). Caso o evento
+            seja remarcado, haverá incidência de taxa de alteração de data no valor de 20% do
+            contrato, mediante disponibilidade da Contratada.
+          </p>
+          <p>
+            <strong>CLÁUSULA TERCEIRA - REGRAS E SEGURANÇA:</strong> É expressamente proibido colar,
+            perfurar ou fixar qualquer tipo de material nas paredes, móveis e equipamentos do salão.
+            Danos causados por convidados ou equipe terceirizada contratada pela Contratante serão
+            cobrados integralmente. A Contratada não se responsabiliza por objetos deixados no
+            local.
+          </p>
+          <p>
+            <strong>CLÁUSULA QUARTA - USO DE IMAGEM:</strong> A Contratante autoriza, a título
+            gratuito, o uso de imagens (fotos e vídeos) realizadas durante o evento nas redes
+            sociais e materiais promocionais da Contratada. Caso não deseje, a Contratante deverá
+            comunicar por escrito antes da realização do evento.
+          </p>
+          <div className="flex justify-between pt-12 pb-4 px-8 mt-8">
+            <div className="text-center w-[40%] border-t border-black pt-1">
+              <p className="font-bold">{lead?.name}</p>
+              <p>Contratante (CPF: {lead?.cpf || '_________________'})</p>
+            </div>
+            <div className="text-center w-[40%] border-t border-black pt-1">
+              <p className="font-bold">Tribo da Folia Festas e Eventos Eireli</p>
+              <p>Contratada (CNPJ: 10.368.886/0001-84)</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
