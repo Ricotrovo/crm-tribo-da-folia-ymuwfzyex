@@ -61,7 +61,7 @@ export function DishesTab() {
             setIsDialogOpen(true)
           }}
         >
-          <Plus className="w-4 h-4 mr-2" /> Novo Prato
+          <Plus className="w-4 h-4 mr-2" /> Incluir Prato
         </Button>
       </div>
 
@@ -92,25 +92,20 @@ export function DishesTab() {
                 <TableCell>
                   <div className="flex items-center justify-end gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setEditingDish(dish)
                         setIsDialogOpen(true)
                       }}
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-4 h-4 mr-1" /> Alterar
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-red-500"
-                      onClick={() => handleDelete(dish.id)}
-                    >
-                      <Trash className="w-4 h-4" />
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(dish.id)}>
+                      <Trash className="w-4 h-4 mr-1" /> Excluir
                     </Button>
                   </div>
-                </TableCell>
+                </TableCell>{' '}
               </TableRow>
             ))}
             {filtered.length === 0 && (

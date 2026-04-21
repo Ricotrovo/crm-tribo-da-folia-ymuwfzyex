@@ -161,7 +161,25 @@ export function MenuFormDialog({ open, onOpenChange, menu, onSaved }: any) {
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="space-y-2">
-            <Label>Preço (Dia de Semana)</Label>
+            <Label>Preço Base (Sáb/Dom/Feriado)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={prices.we}
+              onChange={(e) => {
+                const val = e.target.value
+                const num = Number(val)
+                setPrices({
+                  ...prices,
+                  we: val,
+                  wd: num ? Math.max(0, num - 1500).toString() : '',
+                  hol: num ? Math.max(0, num - 500).toString() : '',
+                })
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Preço (Segunda a Quinta)</Label>
             <Input
               type="number"
               step="0.01"
@@ -170,16 +188,7 @@ export function MenuFormDialog({ open, onOpenChange, menu, onSaved }: any) {
             />
           </div>
           <div className="space-y-2">
-            <Label>Preço (Fim de Semana)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={prices.we}
-              onChange={(e) => setPrices({ ...prices, we: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Preço (Feriados)</Label>
+            <Label>Preço (Sexta / Véspera)</Label>
             <Input
               type="number"
               step="0.01"

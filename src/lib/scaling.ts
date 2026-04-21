@@ -12,7 +12,9 @@ export function calculateIngredientRequirement(
   if (guests <= 50) return baseQty50
   const extraGuests = guests - 50
   const blocksOf10 = Math.ceil(extraGuests / 10)
-  return baseQty50 + blocksOf10 * incQty10
+  // Scaling by 10% for every 10 extra guests
+  const increment = baseQty50 * 0.1
+  return baseQty50 + blocksOf10 * increment
 }
 
 export function getUnitHint(val: number | string, unit?: string) {

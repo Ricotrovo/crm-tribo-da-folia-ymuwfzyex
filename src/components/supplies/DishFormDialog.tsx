@@ -270,7 +270,9 @@ export function DishFormDialog({ open, onOpenChange, dish, onSaved }: any) {
                           value={ing.base_quantity_50}
                           onChange={(e) => {
                             const n = [...ingredients]
-                            n[idx].base_quantity_50 = e.target.value
+                            const val = e.target.value
+                            n[idx].base_quantity_50 = val
+                            n[idx].increment_quantity_10 = (Number(val) * 0.1).toFixed(3)
                             setIngredients(n)
                           }}
                         />

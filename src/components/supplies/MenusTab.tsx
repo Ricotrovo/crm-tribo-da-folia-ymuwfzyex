@@ -68,9 +68,9 @@ export function MenusTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Nome</TableHead>
-            <TableHead>Dia de Semana</TableHead>
-            <TableHead>Fim de Semana</TableHead>
-            <TableHead>Convidado Extra (Dia)</TableHead>
+            <TableHead>Base (Sáb/Dom/Feriado)</TableHead>
+            <TableHead>Segunda a Quinta</TableHead>
+            <TableHead>Sexta / Véspera</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -78,9 +78,9 @@ export function MenusTab() {
           {menus.map((m) => (
             <TableRow key={m.id}>
               <TableCell className="font-medium">{m.name}</TableCell>
-              <TableCell>R$ {(m.price_weekday || 0).toFixed(2)}</TableCell>
               <TableCell>R$ {(m.price_weekend || 0).toFixed(2)}</TableCell>
-              <TableCell>R$ {(m.extra_guest_price_day_of || 0).toFixed(2)}</TableCell>
+              <TableCell>R$ {(m.price_weekday || 0).toFixed(2)}</TableCell>
+              <TableCell>R$ {(m.price_holiday || 0).toFixed(2)}</TableCell>
               <TableCell className="text-right">
                 <div className="flex gap-2 justify-end">
                   <Button variant="outline" size="sm" onClick={() => handleEdit(m)}>
