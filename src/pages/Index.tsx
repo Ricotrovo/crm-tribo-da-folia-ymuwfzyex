@@ -113,7 +113,9 @@ export default function Index() {
       }))
       setFunnelData(funnel)
 
-      const upcoming = [...eventsRes].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
+      const upcoming = [...eventsRes]
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        .slice(0, 5)
       setRecentEvents(upcoming)
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
@@ -182,9 +184,21 @@ export default function Index() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-sm">
-                      {event.date
-                        ? format(new Date(event.date + 'T00:00:00'), 'dd/MM/yyyy')
-                        : 'Sem data'}
+                      {(() => {
+                        if (!event.date) return 'Sem data'
+                        try {
+                          const dateToParse = event.date.includes('T')
+                            ? event.date
+                            : `${event.date}T00:00:00`
+                          const d = new Date(dateToParse)
+                          if (!isNaN(d.getTime())) {
+                            return format(d, 'dd/MM/yyyy')
+                          }
+                          return event.date
+                        } catch (e) {
+                          return 'Data inválida'
+                        }
+                      })()}
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {event.time || '--:--'} • {event.salon || 'N/A'}
