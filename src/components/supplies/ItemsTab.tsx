@@ -31,7 +31,7 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Badge } from '@/components/ui/badge'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 const schema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -95,9 +95,7 @@ export function ItemsTab() {
   useEffect(() => {
     loadData()
   }, [])
-  useRealtime('items', () => {
-    loadData()
-  })
+  useRealtime('items', () => loadData())
 
   const handleEdit = (item: any) => {
     form.reset({
@@ -128,10 +126,10 @@ export function ItemsTab() {
       }
       if (editingId) {
         await pb.collection('items').update(editingId, data)
-        toast({ title: 'Sucesso', description: 'Item atualizado.' })
+        toast({ title: 'Sucesso', description: 'Item alterado.' })
       } else {
         await pb.collection('items').create(data)
-        toast({ title: 'Sucesso', description: 'Item cadastrado.' })
+        toast({ title: 'Sucesso', description: 'Item incluído.' })
       }
       setOpen(false)
       setEditingId(null)
@@ -144,7 +142,12 @@ export function ItemsTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Catálogo Global</h2>
+        <div>
+          <h2 className="text-xl font-semibold">Catálogo Global de Itens e Insumos</h2>
+          <p className="text-sm text-muted-foreground">
+            O sistema suporta entradas decimais para quantidades (ex: 0.5 kg).
+          </p>
+        </div>
         <Dialog
           open={open}
           onOpenChange={(o) => {
@@ -156,11 +159,13 @@ export function ItemsTab() {
           }}
         >
           <DialogTrigger asChild>
-            <Button>Novo Item</Button>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" /> Incluir Novo Item
+            </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingId ? 'Editar Item' : 'Cadastrar Novo Item'}</DialogTitle>
+              <DialogTitle>{editingId ? 'Alterar Item' : 'Incluir Novo Item'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-2">
               <div className="grid grid-cols-2 gap-4">
@@ -234,7 +239,7 @@ export function ItemsTab() {
 
               <div className="grid grid-cols-4 gap-4 p-4 bg-muted rounded-md border">
                 <div className="space-y-2">
-                  <Label>Unidade</Label>
+                  <Label>Unidade de Medida</Label>
                   <Controller
                     control={form.control}
                     name="unit"
@@ -266,8 +271,8 @@ export function ItemsTab() {
                       <Input {...form.register('size')} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Estoque</Label>
-                      <Input type="number" {...form.register('stock_quantity')} />
+                      <Label>Estoque Atual</Label>
+                      <Input type="number" step="0.001" {...form.register('stock_quantity')} />
                     </div>
                   </>
                 )}
@@ -284,7 +289,7 @@ export function ItemsTab() {
                 </div>
                 <div className="space-y-2">
                   <Label>Qtd Inclusa (Pacote)</Label>
-                  <Input type="number" {...form.register('included_quantity')} />
+                  <Input type="number" step="0.001" {...form.register('included_quantity')} />
                 </div>
               </div>
 
@@ -294,7 +299,7 @@ export function ItemsTab() {
               </div>
 
               <Button type="submit" className="w-full">
-                {editingId ? 'Salvar Alterações' : 'Salvar Cadastro'}
+                {editingId ? 'Salvar Alterações' : 'Incluir Cadastro'}
               </Button>
             </form>
           </DialogContent>
@@ -307,7 +312,6 @@ export function ItemsTab() {
             <TableHead>Tipo</TableHead>
             <TableHead>Fornecedor</TableHead>
             <TableHead className="text-right">Venda (R$)</TableHead>
-            <TableHead className="text-right">Qtd Inclusa</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -338,20 +342,21 @@ export function ItemsTab() {
                 {(i.sale_price || i.base_price || 0).toFixed(2)}{' '}
                 {i.unit ? `p/ ${i.unit === 'hundred' ? 'cento' : i.unit}` : ''}
               </TableCell>
-              <TableCell className="text-right">{i.included_quantity || 0}</TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" onClick={() => handleEdit(i)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(i.id)}>
-                  <Trash2 className="h-4 w-4 text-red-500" />
-                </Button>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" onClick={() => handleEdit(i)}>
+                    <Pencil className="h-4 w-4 mr-1" /> Alterar
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => handleDelete(i.id)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> Excluir
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
           {items.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+              <TableCell colSpan={5} className="text-center text-muted-foreground py-4">
                 Nenhum item cadastrado.
               </TableCell>
             </TableRow>
