@@ -110,7 +110,7 @@ export default function Login() {
             </div>
             <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-md border border-border/50">
               <p className="font-semibold mb-1 text-foreground">
-                Conta de teste (senha: Skip@Pass):
+                Acesso ao CRM (senha padrão: 12345678):
               </p>
               <ul className="list-disc pl-4 space-y-0.5">
                 <li>r.trovo@gmail.com</li>

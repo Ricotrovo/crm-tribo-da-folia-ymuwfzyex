@@ -6,7 +6,6 @@ import { AuthProvider, useAuth } from '@/hooks/use-auth'
 import Index from './pages/Index'
 import Leads from './pages/Leads'
 import Agenda from './pages/Agenda'
-import Contracts from './pages/Contracts'
 import Stock from './pages/Stock'
 import Supplies from './pages/Supplies'
 import EventDetails from './pages/EventDetails'
@@ -38,7 +37,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+    <BrowserRouter>
       <TooltipProvider>
         <Toaster />
         <Sonner />

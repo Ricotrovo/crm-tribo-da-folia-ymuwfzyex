@@ -10,6 +10,8 @@ export interface Contract {
   event_date: string
   event_start_time?: string
   event_end_time?: string
+  status?: string
+  duration?: number
   guest_count?: number
   salon?: string
   has_alcohol?: boolean

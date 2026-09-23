@@ -29,10 +29,12 @@ const formSchema = z.object({
   time: z.string().min(1, 'Horário é obrigatório'),
   salon: z.string().min(1, 'Salão é obrigatório'),
   client_name: z.string().min(1, 'Cliente é obrigatório'),
-  guests: z.coerce.number().min(1, 'Mínimo 1 convidado'),
+  guests: z.number().min(1, 'Mínimo 1 convidado'),
   menu: z.string().optional().or(z.literal('')),
-  status: z.string().default('Pending'),
+  status: z.string(),
 })
+
+type FormValues = z.infer<typeof formSchema>
 
 export function EventSheet({
   open,
@@ -44,8 +46,8 @@ export function EventSheet({
   onSuccess: () => void
 }) {
   const { toast } = useToast()
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       title: '',
       date: '',
@@ -182,7 +184,11 @@ export function EventSheet({
                 <FormItem>
                   <FormLabel>Convidados (Qtd)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="number" />
+                    <Input
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
